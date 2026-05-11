@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  AccountID                             String             @id(map: "PK__Account__349DA586D05984C9") @db.UniqueIdentifier
+  Username                              String             @unique(map: "UQ__Account__536C85E47C2E583F") @db.NVarChar(50)
+  PasswordHash                          String             @db.NVarChar(256)
+  RoleID                                Int?
+  CenterID                              Int?
+  IsLocked                              Boolean?
+  LastLoginIP                           String?            @db.VarChar(50)
+  DispatchCenter                        DispatchCenter?    @relation(fields: [CenterID], references: [CenterID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Account__CenterI__5165187F")
+  Roles                                 Roles?             @relation(fields: [RoleID], references: [RoleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Account__RoleID__5070F446")
+  Driver                                Driver[]
+  Messages_Messages_ReceiverIDToAccount Messages[]         @relation("Messages_ReceiverIDToAccount")
+  Messages_Messages_SenderIDToAccount   Messages[]         @relation("Messages_SenderIDToAccount")
+  PassengerProfile                      PassengerProfile[]
+}
+
+model Announcement {
+  PostID      Int       @id(map: "PK__Announce__AA126038E5DEEA20") @default(autoincrement())
+  Title       String    @db.NVarChar(200)
+  Content     String?   @db.NVarChar(Max)
+  PublishDate DateTime? @db.DateTime
+}
+
+model Bookings {
+  BookingID        BigInt            @id(map: "PK__Bookings__73951ACD6A796351") @default(autoincrement())
+  PassengerID      String?           @db.UniqueIdentifier
+  BookingType      Int?
+  PickupTime       DateTime?         @db.DateTime
+  PickupAddr       String?           @db.NVarChar(255)
+  DropoffAddr      String?           @db.NVarChar(255)
+  CompanionCount   Int?
+  BookingStatus    Int?
+  IsRoundTrip      Boolean?
+  PassengerProfile PassengerProfile? @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Bookings__Passen__6A30C649")
+  DispatchTasks    DispatchTasks[]
+  Feedback         Feedback[]
+}
+
+model DispatchCenter {
+  CenterID   Int       @id(map: "PK__Dispatch__398FC7D7C276E8E8")
+  CenterName String    @db.NVarChar(100)
+  Account    Account[]
+}
+
+model DispatchTasks {
+  TaskID           BigInt    @id(map: "PK__Dispatch__7C6949D16E562278") @default(autoincrement())
+  BookingID        BigInt?
+  VehicleID        Int?
+  DriverID         Int?
+  EstimatedArrival DateTime? @db.DateTime
+  ActualArrival    DateTime? @db.DateTime
+  CollectAmount    Int?
+  SubsidyAmount    Int?
+  Bookings         Bookings? @relation(fields: [BookingID], references: [BookingID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DispatchT__Booki__6EF57B66")
+  Driver           Driver?   @relation(fields: [DriverID], references: [DriverID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DispatchT__Drive__70DDC3D8")
+  Vehicle          Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DispatchT__Vehic__6FE99F9F")
+}
+
+model Driver {
+  DriverID       Int              @id(map: "PK__Driver__F1B1CD249998093C") @default(autoincrement())
+  AccountID      String?          @db.UniqueIdentifier
+  DriverNo       String           @unique(map: "UQ__Driver__F1B1D57631BAEF96") @db.VarChar(20)
+  DriverName     String?          @db.NVarChar(50)
+  Mobile         String?          @db.VarChar(20)
+  DispatchTasks  DispatchTasks[]
+  Account        Account?         @relation(fields: [AccountID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Driver__AccountI__628FA481")
+  DriverCheckLog DriverCheckLog[]
+}
+
+model DriverCheckLog {
+  LogID          BigInt    @id(map: "PK__DriverCh__5E5499A8F7036EF3") @default(autoincrement())
+  DriverID       Int?
+  VehicleID      Int?
+  CheckDate      DateTime? @db.DateTime
+  OilStatus      Boolean?
+  Breathalyzer   Decimal?  @db.Decimal(4, 2)
+  StartMileage   Decimal?  @db.Decimal(10, 1)
+  EndMileage     Decimal?  @db.Decimal(10, 1)
+  WaterStatus    Boolean?
+  SeatbeltStatus Boolean?
+  CheckNote      String?   @db.NVarChar(Max)
+  Driver         Driver?   @relation(fields: [DriverID], references: [DriverID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DriverChe__Drive__656C112C")
+  Vehicle        Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DriverChe__Vehic__66603565")
+}
+
+model DrivingBehavior {
+  BehaviorID   BigInt    @id(map: "PK__DrivingB__361B2187CA256E62") @default(autoincrement())
+  VehicleID    Int?
+  BehaviorType Int?
+  OccurTime    DateTime? @db.DateTime
+  Vehicle      Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__DrivingBe__Vehic__778AC167")
+}
+
+model Feedback {
+  FeedbackID Int       @id(map: "PK__Feedback__6A4BEDF6072BEC0F") @default(autoincrement())
+  BookingID  BigInt?
+  Rating     Int?
+  Comment    String?   @db.NVarChar(500)
+  Bookings   Bookings? @relation(fields: [BookingID], references: [BookingID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Feedback__Bookin__7E37BEF6")
+}
+
+model FuelLog {
+  FuelID    Int       @id(map: "PK__FuelLog__706CF3C7C8D0279B") @default(autoincrement())
+  VehicleID Int?
+  FuelDate  DateTime? @db.Date
+  FuelType  String?   @db.NVarChar(20)
+  Liters    Decimal?  @db.Decimal(7, 2)
+  Amount    Int?
+  Vehicle   Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__FuelLog__Vehicle__01142BA1")
+}
+
+model GPSLogs {
+  GpsID     BigInt    @id(map: "PK__GPSLogs__E2C2B356169D9321") @default(autoincrement())
+  VehicleID Int?
+  Latitude  Decimal?  @db.Decimal(10, 7)
+  Longitude Decimal?  @db.Decimal(10, 7)
+  Speed     Decimal?  @db.Decimal(5, 2)
+  Heading   Int?
+  Timestamp DateTime? @db.DateTime
+  Vehicle   Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__GPSLogs__Vehicle__73BA3083")
+
+  @@index([Timestamp], map: "IX_GPSLogs_Timestamp")
+}
+
+model Messages {
+  MessageID                            BigInt    @id(map: "PK__Messages__C87C037C98EAE1BD") @default(autoincrement())
+  SenderID                             String?   @db.UniqueIdentifier
+  ReceiverID                           String?   @db.UniqueIdentifier
+  MessageType                          Int?
+  Content                              String?   @db.NVarChar(Max)
+  SendTime                             DateTime? @db.DateTime
+  Account_Messages_ReceiverIDToAccount Account?  @relation("Messages_ReceiverIDToAccount", fields: [ReceiverID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Messages__Receiv__04E4BC85")
+  Account_Messages_SenderIDToAccount   Account?  @relation("Messages_SenderIDToAccount", fields: [SenderID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Messages__Sender__03F0984C")
+}
+
+model PassengerProfile {
+  PassengerID     String         @id(map: "PK__Passenge__88915F9050D5D69A") @db.UniqueIdentifier
+  AccountID       String?        @db.UniqueIdentifier
+  RealName        String?        @db.NVarChar(50)
+  IdentityNo      String?        @unique(map: "UQ__Passenge__30655EAE19FB83DF") @db.NVarChar(20)
+  IdentityType    Int?
+  DisabilityLevel String?        @db.NVarChar(20)
+  ExpiryDate      DateTime?      @db.Date
+  BirthDate       DateTime?      @db.Date
+  AssistiveDevice String?        @db.NVarChar(50)
+  Address         String?        @db.NVarChar(255)
+  AuditStatus     Int?
+  Bookings        Bookings[]
+  Account         Account?       @relation(fields: [AccountID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Passenger__Accou__571DF1D5")
+  Relationship    Relationship[]
+}
+
+model Relationship {
+  RelID            Int               @id(map: "PK__Relation__2DA9EE4EBE0813D3") @default(autoincrement())
+  PassengerID      String?           @db.UniqueIdentifier
+  ApplicantName    String?           @db.NVarChar(50)
+  RelationType     String?           @db.NVarChar(20)
+  PassengerProfile PassengerProfile? @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Relations__Passe__5AEE82B9")
+}
+
+model Roles {
+  RoleID        Int       @id(map: "PK__Roles__8AFACE3A3848240E")
+  RoleName      String    @db.NVarChar(20)
+  PermissionMap String?   @db.NVarChar(Max)
+  Account       Account[]
+}
+
+model Vehicle {
+  VehicleID       Int               @id(map: "PK__Vehicle__476B54B25306FB46") @default(autoincrement())
+  PlateNo         String            @unique(map: "UQ__Vehicle__48227C0CA32C6C63") @db.VarChar(15)
+  VehicleType     String?           @db.NVarChar(20)
+  SeatCount       Int?
+  Status          Int?
+  DispatchTasks   DispatchTasks[]
+  DriverCheckLog  DriverCheckLog[]
+  DrivingBehavior DrivingBehavior[]
+  FuelLog         FuelLog[]
+  GPSLogs         GPSLogs[]
+}

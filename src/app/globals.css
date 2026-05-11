@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-brand-50: #E6EEF0;
+    --color-brand-500: #0F4C5C;
+    --color-brand-700: #093945;
+    --color-accent-50: #FBEFE6;
+    --color-accent-500: #E36414;
+    --color-accent-700: #C05308;
+    --color-cream: #FFFCF5;
+    --color-surface: #FFFFFF;
+    --color-ink: #1A2D33;
+    --color-ink-soft: #4A5C61;
+    --color-ink-muted: #7A8A8F;
+    --color-border: #E8DFD2;
+  }
+
+  html {
+    font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (max-width: 480px) {
+    html {
+      font-size: 16px;
+    }
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-noto-tc), ui-sans-serif, system-ui, -apple-system,
+      'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--color-ink);
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-500);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(227, 100, 20, 0.35);
+    border-radius: 4px;
+  }
+
+  a {
+    color: var(--color-brand-500);
+  }
+
+  a:hover {
+    color: var(--color-brand-700);
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    padding: 0.75rem 1rem;
+    background: var(--color-surface);
+    color: var(--color-brand-500);
+    font-weight: 600;
+    z-index: 100;
+  }
+
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    box-shadow: 0 6px 20px rgba(15, 76, 92, 0.18);
+    border-radius: 0.5rem;
+  }
+}

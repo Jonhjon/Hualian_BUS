@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-hud:configure)",
+      "Bash(sqlcmd -S 203.64.84.56,1433 -U tcumi -P tcumi -d BusBookingDB -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME\" -W)",
+      "Bash(sqlcmd *)",
+      "Bash(python -c \"import pyodbc\")",
+      "Bash(python -c \"import pymssql\")",
+      "Bash(node -e \"console.log\\(require\\('module'\\).builtinModules.includes\\('mssql'\\)\\)\")",
+      "Bash(npm list *)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S \"203.64.84.56,1433\" -U tcumi -P tcumi -d BusBookingDB -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME\" -h -1 -W)",
+      "Bash(/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd *)",
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --no-import-alias --yes)",
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --no-import-alias --yes --name hualien-bus-booking)",
+      "Bash(npm install *)",
+      "Bash(npx prisma@5 generate --schema=./prisma/schema.prisma3)",
+      "Bash(npx playwright *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsx *)",
+      "Bash(npm test *)",
+      "Bash(del *)",
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\軟工V2\" -Recurse -Filter \"*.tsx\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 20 FullName)",
+      "Bash(\"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -enc UTF-8 \"Case1_花蓮縣政府復康巴士預約系統服務需求說明書.pdf\" \"spec_main_utf8.txt\")",
+      "Bash(npx jest *)",
+      "Bash(\"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -enc UTF-8 \"Case1_花蓮縣政府復康巴士預約系統服務需求說明書.pdf\" -)",
+      "Bash(node -e ' *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\軟工V2\\\\src\\\\components\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)"
+    ]
+  }
+}

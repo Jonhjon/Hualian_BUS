@@ -1,0 +1,233 @@
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── 1. Account ────────────────────────────────────────────
+model Account {
+  AccountID    String   @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  Username     String   @unique @db.NVarChar(50)
+  PasswordHash String   @db.NVarChar(256)
+  RoleID       Int?
+  CenterID     Int?
+  IsLocked     Boolean?
+  LastLoginIP  String?  @db.VarChar(50)
+
+  role             Roles?             @relation(fields: [RoleID],   references: [RoleID],   onDelete: NoAction, onUpdate: NoAction)
+  center           DispatchCenter?    @relation(fields: [CenterID], references: [CenterID], onDelete: NoAction, onUpdate: NoAction)
+  passengers       PassengerProfile[]
+  drivers          Driver[]
+  messagesSent     Messages[]         @relation("MessagesSender")
+  messagesReceived Messages[]         @relation("MessagesReceiver")
+}
+
+// ─── 2. Roles ──────────────────────────────────────────────
+model Roles {
+  RoleID        Int     @id
+  RoleName      String  @db.NVarChar(20)
+  PermissionMap String? @db.NVarChar(Max)
+
+  accounts Account[]
+}
+
+// ─── 3. DispatchCenter ─────────────────────────────────────
+model DispatchCenter {
+  CenterID   Int    @id
+  CenterName String @db.NVarChar(100)
+
+  accounts Account[]
+}
+
+// ─── 4. PassengerProfile ───────────────────────────────────
+model PassengerProfile {
+  PassengerID     String    @id @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  AccountID       String?   @db.UniqueIdentifier
+  RealName        String?   @db.NVarChar(50)
+  IdentityNo      String?   @unique @db.NVarChar(20)
+  IdentityType    Int?      // 1=復康(身障), 2=長照(失能)
+  DisabilityLevel String?   @db.NVarChar(20)
+  ExpiryDate      DateTime? @db.Date
+  BirthDate       DateTime? @db.Date
+  AssistiveDevice String?   @db.NVarChar(50)
+  Address         String?   @db.NVarChar(255)
+  AuditStatus     Int?      // 0=待審, 1=通過, 2=駁回
+
+  account      Account?       @relation(fields: [AccountID],   references: [AccountID],   onDelete: NoAction, onUpdate: NoAction)
+  bookings     Bookings[]
+  relationship Relationship[]
+  documents    Documents[]
+}
+
+// ─── 5. Relationship ───────────────────────────────────────
+model Relationship {
+  RelID         Int     @id @default(autoincrement())
+  PassengerID   String? @db.UniqueIdentifier
+  ApplicantName String? @db.NVarChar(50)
+  RelationType  String? @db.NVarChar(20) // 配偶/子女/父母/兄弟姐妹/祖父母
+
+  passenger PassengerProfile? @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 6. Vehicle ────────────────────────────────────────────
+model Vehicle {
+  VehicleID   Int     @id @default(autoincrement())
+  PlateNo     String  @unique @db.VarChar(15)
+  VehicleType String? @db.NVarChar(20)
+  SeatCount   Int?
+  Status      Int?    // 0=正常, 1=維修中, 2=報廢
+
+  tasks     DispatchTasks[]
+  gpsLogs   GPSLogs[]
+  checkLogs DriverCheckLog[]
+  behaviors DrivingBehavior[]
+  fuelLogs  FuelLog[]
+}
+
+// ─── 7. Driver ─────────────────────────────────────────────
+model Driver {
+  DriverID   Int     @id @default(autoincrement())
+  AccountID  String? @db.UniqueIdentifier  // DB 無 unique 約束，一個帳號可掛多個司機紀錄
+  DriverNo   String  @unique @db.VarChar(20)
+  DriverName String? @db.NVarChar(50)
+  Mobile     String? @db.VarChar(20)
+
+  account   Account?         @relation(fields: [AccountID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction)
+  tasks     DispatchTasks[]
+  checkLogs DriverCheckLog[]
+}
+
+// ─── 8. DriverCheckLog ─────────────────────────────────────
+model DriverCheckLog {
+  LogID          BigInt    @id @default(autoincrement())
+  DriverID       Int?
+  VehicleID      Int?
+  CheckDate      DateTime? @db.DateTime
+  OilStatus      Boolean?
+  Breathalyzer   Decimal?  @db.Decimal(4, 2)
+  StartMileage   Decimal?  @db.Decimal(10, 1)
+  EndMileage     Decimal?  @db.Decimal(10, 1)
+  WaterStatus    Boolean?
+  SeatbeltStatus Boolean?
+  CheckNote      String?   @db.NVarChar(Max)
+
+  driver  Driver?  @relation(fields: [DriverID],  references: [DriverID],  onDelete: NoAction, onUpdate: NoAction)
+  vehicle Vehicle? @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 9. Bookings ───────────────────────────────────────────
+model Bookings {
+  BookingID      BigInt    @id @default(autoincrement())
+  PassengerID    String?   @db.UniqueIdentifier
+  BookingType    Int?      // 1=復康, 2=長照
+  PickupTime     DateTime? @db.DateTime
+  PickupAddr     String?   @db.NVarChar(255)
+  DropoffAddr    String?   @db.NVarChar(255)
+  CompanionCount Int?
+  BookingStatus  Int?      // 0=預約成功, 1=排班完成, 2=取消, 3=搭乘中, 4=已完趟, 5=後補
+  IsRoundTrip    Boolean?
+
+  passenger     PassengerProfile? @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction)
+  dispatchTasks DispatchTasks[]
+  feedbacks     Feedback[]
+}
+
+// ─── 10. DispatchTasks ─────────────────────────────────────
+model DispatchTasks {
+  TaskID           BigInt    @id @default(autoincrement())
+  BookingID        BigInt?
+  VehicleID        Int?
+  DriverID         Int?
+  EstimatedArrival DateTime? @db.DateTime
+  ActualArrival    DateTime? @db.DateTime
+  CollectAmount    Int?
+  SubsidyAmount    Int?
+
+  booking Bookings? @relation(fields: [BookingID], references: [BookingID], onDelete: NoAction, onUpdate: NoAction)
+  vehicle Vehicle?  @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction)
+  driver  Driver?   @relation(fields: [DriverID],  references: [DriverID],  onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 11. GPSLogs ───────────────────────────────────────────
+model GPSLogs {
+  GpsID     BigInt    @id @default(autoincrement())
+  VehicleID Int?
+  Latitude  Decimal?  @db.Decimal(10, 7)
+  Longitude Decimal?  @db.Decimal(10, 7)
+  Speed     Decimal?  @db.Decimal(5, 2)
+  Heading   Int?
+  Timestamp DateTime? @db.DateTime
+
+  vehicle Vehicle? @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([Timestamp], map: "IX_GPSLogs_Timestamp")
+}
+
+// ─── 12. DrivingBehavior ───────────────────────────────────
+model DrivingBehavior {
+  BehaviorID   BigInt    @id @default(autoincrement())
+  VehicleID    Int?
+  BehaviorType Int?      // 1=急煞, 2=急加速, 3=超速, 4=怠速, 5=急轉彎
+  OccurTime    DateTime? @db.DateTime
+
+  vehicle Vehicle? @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 13. Announcement ──────────────────────────────────────
+model Announcement {
+  PostID      Int       @id @default(autoincrement())
+  Title       String    @db.NVarChar(200)
+  Content     String?   @db.NVarChar(Max)
+  PublishDate DateTime? @db.DateTime
+}
+
+// ─── 14. Feedback ──────────────────────────────────────────
+model Feedback {
+  FeedbackID Int     @id @default(autoincrement())
+  BookingID  BigInt?
+  Rating     Int?    // 1–5
+  Comment    String? @db.NVarChar(500)
+
+  booking Bookings? @relation(fields: [BookingID], references: [BookingID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 15. FuelLog ───────────────────────────────────────────
+model FuelLog {
+  FuelID    Int       @id @default(autoincrement())
+  VehicleID Int?
+  FuelDate  DateTime? @db.Date
+  FuelType  String?   @db.NVarChar(20)
+  Liters    Decimal?  @db.Decimal(7, 2)
+  Amount    Int?
+
+  vehicle Vehicle? @relation(fields: [VehicleID], references: [VehicleID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 16. Messages ──────────────────────────────────────────
+model Messages {
+  MessageID   BigInt    @id @default(autoincrement())
+  SenderID    String?   @db.UniqueIdentifier
+  ReceiverID  String?   @db.UniqueIdentifier
+  MessageType Int?      // 1=文字, 2=語音
+  Content     String?   @db.NVarChar(Max)
+  SendTime    DateTime? @db.DateTime
+
+  sender   Account? @relation("MessagesSender",   fields: [SenderID],   references: [AccountID], onDelete: NoAction, onUpdate: NoAction)
+  receiver Account? @relation("MessagesReceiver", fields: [ReceiverID], references: [AccountID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── 17. Documents（新增，DB 原本沒有） ────────────────────
+model Documents {
+  DocID       Int       @id @default(autoincrement())
+  PassengerID String    @db.UniqueIdentifier
+  FileName    String    @db.NVarChar(255)
+  FilePath    String    @db.NVarChar(500)
+  FileType    String    @db.NVarChar(20)   // application/pdf | image/jpeg | image/png
+  FileSize    Int                           // bytes, 上限 5242880 (5MB)
+  UploadedAt  DateTime? @default(now())
+
+  passenger PassengerProfile @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction)
+}
