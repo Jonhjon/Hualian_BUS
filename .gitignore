@@ -25,6 +25,9 @@ uploads/
 # runtime
 .running_pids
 
+# Playwright MCP browser session artifacts
+.playwright-mcp/
+
 # misc
 *.log
 .DS_Store
