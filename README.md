@@ -129,24 +129,6 @@ NEXT_PUBLIC_HCAPTCHA_SITEKEY="10000000-ffff-ffff-ffff-000000000001"
 
 ---
 
-## 常用指令 / Scripts
-
-| 指令 | 說明 |
-|------|------|
-| `npm run dev` | 啟動開發伺服器於 `:3000` |
-| `npm run build` | Next.js 生產構建 |
-| `npm run start` | 啟動生產環境伺服器 |
-| `npm run lint` | ESLint 檢查 |
-| `npm run test` | Jest 單元 + 整合測試 |
-| `npm run test:watch` | Jest 監聽模式 |
-| `npm run test:coverage` | 產出測試覆蓋率報告 |
-| `npm run test:e2e` | Playwright E2E 測試 |
-| `npm run db:generate` | 產生 Prisma Client |
-| `npm run db:pull` | 反向工程 schema（自既有 DB） |
-| `npm run db:seed` | 寫入種子資料（測試帳號、公告） |
-
----
-
 ## 專案結構 / Project Structure
 
 ```
