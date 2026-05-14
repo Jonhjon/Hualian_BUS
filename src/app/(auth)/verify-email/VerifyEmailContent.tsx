@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, MailCheck, MailX } from 'lucide-react'
+import { apiFetch } from '@/lib/api/client'
 
 function VerifyContent() {
   const token = useSearchParams().get('token') ?? ''
@@ -10,12 +11,12 @@ function VerifyContent() {
 
   useEffect(() => {
     if (!token) { setStatus('error'); return }
-    fetch('/api/auth/verify-email', {
+    apiFetch('/api/auth/verify-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     })
-      .then(r => setStatus(r.ok ? 'success' : 'error'))
+      .then(() => setStatus('success'))
       .catch(() => setStatus('error'))
   }, [token])
 

@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
+import { apiFetch } from '@/lib/api/client'
 
 const schema = z
   .object({
@@ -33,14 +34,16 @@ function ResetPasswordForm() {
 
   async function onSubmit(data: Form) {
     setApiError('')
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, newPassword: data.newPassword }),
-    })
-    const json = await res.json()
-    if (!res.ok) { setApiError(json.error ?? '重設失敗'); return }
-    setDone(true)
+    try {
+      await apiFetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword: data.newPassword }),
+      }, { fallbackErrorMessage: '重設失敗，請稍後再試' })
+      setDone(true)
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : '重設失敗，請稍後再試')
+    }
   }
 
   if (!token) {

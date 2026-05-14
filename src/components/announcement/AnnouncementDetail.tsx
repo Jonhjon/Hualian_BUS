@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { ArrowLeft, Calendar, Loader2, AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import { apiFetch } from '@/lib/api/client'
 
 interface Announcement {
   PostID: number
@@ -14,7 +15,7 @@ interface Announcement {
 export function AnnouncementDetail({ id }: { id: string }) {
   const { data, isLoading, isError } = useQuery<{ data: Announcement }>({
     queryKey: ['announcement', id],
-    queryFn: () => fetch(`/api/announcements/${id}`).then(r => r.json()),
+    queryFn: () => apiFetch<{ data: Announcement }>(`/api/announcements/${id}`),
   })
 
   if (isLoading) {

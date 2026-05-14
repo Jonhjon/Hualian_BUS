@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Send, Star } from 'lucide-react'
 import { feedbackSchema, type FeedbackInput } from '@/lib/validators/feedback.schema'
+import { apiFetch } from '@/lib/api/client'
 import { Textarea } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
@@ -30,14 +31,10 @@ export function FeedbackForm({ bookingId, onSuccess }: Props) {
 
   const submit = useMutation({
     mutationFn: (data: FeedbackInput) =>
-      fetch('/api/feedback', {
+      apiFetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(async r => {
-        const json = await r.json()
-        if (!r.ok) throw new Error(json.error ?? '送出失敗')
-        return json
       }),
     onSuccess,
   })

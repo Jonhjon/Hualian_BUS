@@ -7,6 +7,7 @@ import { CheckCircle2, Send } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
+import { apiFetch } from '@/lib/api/client'
 
 const schema = z.object({
   username: z.string().min(1, '請填寫帳號'),
@@ -22,7 +23,7 @@ export function ForgotPasswordContent() {
   })
 
   async function onSubmit(data: Form) {
-    await fetch('/api/auth/forgot-password', {
+    await apiFetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

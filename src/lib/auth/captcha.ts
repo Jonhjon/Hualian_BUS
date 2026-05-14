@@ -19,8 +19,8 @@ export async function verifyCaptcha(token: string | undefined | null): Promise<b
       body: params.toString(),
     })
     if (!res.ok) return false
-    const json = (await res.json()) as { success?: boolean }
-    return json.success === true
+    const json = (await res.json().catch(() => null)) as { success?: boolean } | null
+    return json?.success === true
   } catch {
     return false
   }

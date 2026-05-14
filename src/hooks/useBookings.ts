@@ -1,5 +1,6 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api/client'
 
 export interface DispatchTaskSummary {
   TaskID: string
@@ -27,11 +28,24 @@ export interface BookingListResponse {
   meta: { total: number; page: number; limit: number }
 }
 
-async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, options)
-  const json = await res.json()
-  if (!res.ok) throw Object.assign(new Error(json.error ?? '操作失敗'), { status: res.status })
-  return json
+export interface VehicleTrackingResponse {
+  success: boolean
+  data: {
+    position: {
+      lat: number
+      lng: number
+      speed?: number
+      timestamp?: string
+    } | null
+    message?: string
+  }
+}
+
+export interface CancelBookingResponse {
+  success: boolean
+  data: {
+    isLateCancel?: boolean
+  }
 }
 
 export function useBookings(status?: 'upcoming' | 'history', page = 1) {
@@ -40,7 +54,7 @@ export function useBookings(status?: 'upcoming' | 'history', page = 1) {
 
   return useQuery<BookingListResponse>({
     queryKey: ['bookings', status, page],
-    queryFn: () => apiFetch(`/api/bookings?${params}`),
+    queryFn: () => apiFetch<BookingListResponse>(`/api/bookings?${params}`),
   })
 }
 
@@ -60,17 +74,17 @@ export function useCreateBooking() {
 export function useCancelBooking() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/bookings/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiFetch<CancelBookingResponse>(`/api/bookings/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookings'] }),
   })
 }
 
 export function useVehicleTracking(bookingId: string | null) {
-  return useQuery({
+  return useQuery<VehicleTrackingResponse>({
     queryKey: ['tracking', bookingId],
-    queryFn: () => apiFetch(`/api/bookings/${bookingId}/track`),
+    queryFn: () => apiFetch<VehicleTrackingResponse>(`/api/bookings/${bookingId}/track`),
     enabled: !!bookingId,
-    refetchInterval: 30_000, // 30 秒輪詢
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
 }

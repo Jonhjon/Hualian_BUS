@@ -18,6 +18,7 @@ import type { Booking } from '@/hooks/useBookings'
 import { Container } from '@/components/ui/Container'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { apiFetch } from '@/lib/api/client'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'neutral'
 
@@ -49,10 +50,7 @@ interface BookingDetailResponse {
 }
 
 async function fetchBooking(id: string): Promise<BookingDetailResponse> {
-  const res = await fetch(`/api/bookings/${id}`)
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error ?? '載入預約資料失敗')
-  return json
+  return apiFetch<BookingDetailResponse>(`/api/bookings/${id}`)
 }
 
 export default function BookingDetailPage() {

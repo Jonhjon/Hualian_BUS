@@ -2,24 +2,14 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth.store'
+import { apiFetch } from '@/lib/api/client'
 
-interface ApiError extends Error {
-  status: number
-}
-
-async function apiFetch(url: string, body: unknown) {
-  const res = await fetch(url, {
+function postApi(url: string, body: unknown, fallbackErrorMessage = '操作失敗，請稍後再試') {
+  return apiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!res.ok) {
-    const err = new Error(json.error ?? '操作失敗') as ApiError
-    err.status = res.status
-    throw err
-  }
-  return json
+  }, { fallbackErrorMessage })
 }
 
 export function getSafeNextPath(next: string | null): string {
@@ -38,7 +28,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: { username: string; password: string }) =>
-      apiFetch('/api/auth/login', data),
+      postApi('/api/auth/login', data),
     onSuccess: (_data, variables) => {
       setAuth(variables.username, 4)
       router.push(getLoginNextPath())
@@ -52,7 +42,7 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      apiFetch('/api/auth/register', data),
+      postApi('/api/auth/register', data, '申請失敗，請稍後再試'),
     onSuccess: () => router.push('/login?registered=1'),
   })
 }
@@ -62,7 +52,7 @@ export function useLogout() {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: () => apiFetch('/api/auth/logout', {}),
+    mutationFn: () => postApi('/api/auth/logout', {}),
     onSuccess: () => {
       clearAuth()
       router.push('/announcements')
