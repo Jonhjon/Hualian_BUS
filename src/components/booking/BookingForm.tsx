@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { bookingSchema, type BookingInput } from '@/lib/validators/booking.schema'
 import { useCreateBooking } from '@/hooks/useBookings'
+import { apiFetch } from '@/lib/api/client'
 import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
@@ -39,8 +40,12 @@ function getDateRange() {
 
 interface ProfileResponse {
   data: {
+    realName: string | null
+    gender: string | null
     identityType: number | null
     auditStatus: number | null
+    birthDate: string | null
+    expiryDate: string | null
     disabilityLevel: string | null
     assistiveDevice: string | null
   }
@@ -52,10 +57,7 @@ const AUDIT_MESSAGE: Record<number, string> = {
 }
 
 async function fetchProfile(): Promise<ProfileResponse> {
-  const res = await fetch('/api/profile')
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error ?? '個人資料載入失敗')
-  return json
+  return apiFetch<ProfileResponse>('/api/profile')
 }
 
 function SectionTitle({ icon, title, description }: { icon: React.ReactNode; title: string; description?: string }) {
@@ -68,6 +70,24 @@ function SectionTitle({ icon, title, description }: { icon: React.ReactNode; tit
         <h2 className="text-base font-bold text-ink">{title}</h2>
         {description && <p className="text-xs text-ink-soft">{description}</p>}
       </div>
+    </div>
+  )
+}
+
+function formatProfileDate(value: string | null | undefined): string {
+  if (!value) return '—'
+  try {
+    return new Date(value).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })
+  } catch {
+    return '—'
+  }
+}
+
+function ProfileItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-cream px-3 py-2">
+      <dt className="text-xs font-semibold text-ink-muted">{label}</dt>
+      <dd className="mt-0.5 text-sm font-semibold text-ink">{value || '—'}</dd>
     </div>
   )
 }
@@ -97,10 +117,11 @@ export function BookingForm() {
     defaultValues: { bookingType: 1, companionCount: 0, isRoundTrip: false },
   })
 
-  const identityType = profile.data?.data.identityType
-  const auditStatus = profile.data?.data.auditStatus
-  const profileDisabilityLevel = profile.data?.data.disabilityLevel
-  const profileAssistiveDevice = profile.data?.data.assistiveDevice
+  const profileData = profile.data?.data
+  const identityType = profileData?.identityType
+  const auditStatus = profileData?.auditStatus
+  const profileDisabilityLevel = profileData?.disabilityLevel
+  const profileAssistiveDevice = profileData?.assistiveDevice
   const hasValidIdentityType = identityType === 1 || identityType === 2
   const isApproved = auditStatus === 1
   const auditMessage = typeof auditStatus === 'number' ? AUDIT_MESSAGE[auditStatus] : undefined
@@ -238,6 +259,16 @@ export function BookingForm() {
               </p>
             )}
           </FormField>
+
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <ProfileItem label="姓名" value={profileData?.realName ?? '—'} />
+            <ProfileItem label="性別" value={profileData?.gender ?? '—'} />
+            <ProfileItem label="出生年月日" value={formatProfileDate(profileData?.birthDate)} />
+            <ProfileItem label="證明到期日" value={formatProfileDate(profileData?.expiryDate)} />
+            <ProfileItem label="類別" value={hasValidIdentityType ? IDENTITY_LABEL[identityType] : '—'} />
+            <ProfileItem label="障礙等級／失能等級" value={profileDisabilityLevel ?? '—'} />
+            <ProfileItem label="輔具" value={profileAssistiveDevice ?? '—'} />
+          </dl>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label="障礙等級／失能等級（選填）" htmlFor="disabilityLevel">

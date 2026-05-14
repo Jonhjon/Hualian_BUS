@@ -5,6 +5,7 @@ import { maskIdentityNo } from '@/lib/utils/mask'
 
 const STATUS_COMPLETED = 4
 const STATUS_CANCELLED = 2
+const GENDER_LABEL: Record<number, string> = { 1: '男', 2: '女', 0: '其他' }
 
 interface MonthlyStats {
   booked: number
@@ -57,6 +58,9 @@ export async function GET() {
     realName: profile.RealName,
     identityNo: maskIdentityNo(profile.IdentityNo),
     identityType: profile.IdentityType,
+    gender: profile.Gender != null ? (GENDER_LABEL[profile.Gender] ?? String(profile.Gender)) : null,
+    email: profile.Email,
+    phone: profile.Phone,
     auditStatus: profile.AuditStatus,
     address: profile.Address,
     birthDate: profile.BirthDate,

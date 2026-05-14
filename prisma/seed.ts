@@ -43,6 +43,11 @@ async function main() {
         RealName: '測試使用者',
         IdentityNo: 'A123456789',
         IdentityType: 1,
+        Gender: 1,
+        Email: 'testuser@example.com',
+        Phone: '0912345678',
+        DisabilityLevel: '中度',
+        AssistiveDevice: '輪椅',
         BirthDate: new Date('1990-01-01'),
         Address: '花蓮縣花蓮市中正路1號',
         AuditStatus: 1, // auto-approved for dev

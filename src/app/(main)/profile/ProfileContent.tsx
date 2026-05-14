@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Wrench,
   MapPin,
+  Mail,
+  Phone,
   Loader2,
   TrendingUp,
   CalendarCheck,
@@ -19,25 +21,13 @@ import {
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { apiFetch, ApiError } from '@/lib/api/client'
 
 const AUDIT_LABEL: Record<number, string> = { 0: '審核中', 1: '已通過', 2: '已駁回' }
 const IDENTITY_LABEL: Record<number, string> = { 1: '復康（身障）', 2: '長照（失能）' }
 
-interface ApiError extends Error {
-  status: number
-}
-
 async function fetchProfile() {
-  const res = await fetch('/api/profile')
-  const json = await res.json()
-
-  if (!res.ok) {
-    const err = new Error(json.error ?? '個人資料載入失敗') as ApiError
-    err.status = res.status
-    throw err
-  }
-
-  return json as { data: Record<string, unknown> }
+  return apiFetch<{ data: Record<string, unknown> }>('/api/profile')
 }
 
 function formatDate(value: unknown): string {
@@ -130,7 +120,10 @@ export function ProfileContent() {
         <dl className="grid gap-y-3 text-sm">
           <ProfileRow icon={<UserIcon size={14} />} label="登入帳號" value={String(p?.username || '—')} />
           <ProfileRow icon={<UserIcon size={14} />} label="姓名" value={String(p?.realName || '—')} />
+          <ProfileRow icon={<UserIcon size={14} />} label="性別" value={String(p?.gender || '—')} />
           <ProfileRow icon={<IdCard size={14} />} label="身分證字號" value={String(p?.identityNo || '—')} />
+          <ProfileRow icon={<Mail size={14} />} label="電子郵件" value={String(p?.email || '—')} />
+          <ProfileRow icon={<Phone size={14} />} label="聯絡電話" value={String(p?.phone || '—')} />
           <ProfileRow
             icon={<ShieldCheck size={14} />}
             label="服務類型"

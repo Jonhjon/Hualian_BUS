@@ -69,6 +69,40 @@ describe('RegisterForm', () => {
     expect(screen.getByLabelText('帳號')).toBeInTheDocument()
   })
 
+  it('shows all required passenger and applicant fields', async () => {
+    renderForm()
+    await userEvent.type(screen.getByLabelText('帳號'), 'validuser')
+    await userEvent.type(screen.getByLabelText('密碼'), 'password123')
+    await userEvent.type(screen.getByLabelText('確認密碼'), 'password123')
+    await userEvent.click(screen.getByRole('button', { name: /下一步/ }))
+
+    expect(await screen.findByLabelText('真實姓名')).toBeInTheDocument()
+    expect(screen.getByLabelText('身分證字號')).toBeInTheDocument()
+    expect(screen.getByLabelText('性別')).toBeInTheDocument()
+    expect(screen.getByLabelText('服務類型')).toBeInTheDocument()
+    expect(screen.getByLabelText('生日')).toBeInTheDocument()
+    expect(screen.getByLabelText('證明到期日')).toBeInTheDocument()
+    expect(screen.getByLabelText('障礙等級／失能等級')).toBeInTheDocument()
+    expect(screen.getByLabelText('輔具')).toBeInTheDocument()
+    expect(screen.getByLabelText('地址')).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('真實姓名'), '王小明')
+    await userEvent.type(screen.getByLabelText('身分證字號'), 'A123456789')
+    await userEvent.selectOptions(screen.getByLabelText('性別'), '男')
+    await userEvent.selectOptions(screen.getByLabelText('服務類型'), '1')
+    await userEvent.type(screen.getByLabelText('生日'), '1990-01-01')
+    await userEvent.type(screen.getByLabelText('證明到期日'), '2030-12-31')
+    await userEvent.type(screen.getByLabelText('障礙等級／失能等級'), '中度')
+    await userEvent.type(screen.getByLabelText('輔具'), '輪椅')
+    await userEvent.type(screen.getByLabelText('地址'), '花蓮縣花蓮市中正路1號')
+    await userEvent.click(screen.getByRole('button', { name: /下一步/ }))
+
+    expect(await screen.findByLabelText('申請人姓名')).toBeInTheDocument()
+    expect(screen.getByLabelText('與乘客關係')).toBeInTheDocument()
+    expect(screen.getByLabelText('電子郵件')).toBeInTheDocument()
+    expect(screen.getByLabelText('連絡電話')).toBeInTheDocument()
+  })
+
   it('shows step indicator', () => {
     renderForm()
     expect(screen.getByText(/步驟 1/)).toBeInTheDocument()

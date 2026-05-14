@@ -33,9 +33,12 @@ describe('step2Schema', () => {
   const valid = {
     realName: '王小明',
     identityNo: 'A123456789',
+    gender: '男' as const,
     identityType: 1 as const,
     birthDate: '1990-01-01',
     expiryDate: '2030-12-31',
+    disabilityLevel: '中度',
+    assistiveDevice: '輪椅',
     address: '花蓮縣花蓮市中正路1號',
   }
 
@@ -61,16 +64,31 @@ describe('step2Schema', () => {
 })
 
 describe('step3Schema', () => {
-  it('accepts empty step 3', () => {
-    expect(step3Schema.safeParse({}).success).toBe(true)
+  const valid = {
+    applicantName: '王大明',
+    relationType: '子女' as const,
+    email: 'user@example.com',
+    phone: '0912345678',
+  }
+
+  it('accepts valid applicant contact data', () => {
+    expect(step3Schema.safeParse(valid).success).toBe(true)
   })
 
-  it('accepts valid relationship data', () => {
-    expect(step3Schema.safeParse({ applicantName: '王大明', relationType: '子女' }).success).toBe(true)
+  it('rejects missing applicant name', () => {
+    expect(step3Schema.safeParse({ ...valid, applicantName: '' }).success).toBe(false)
+  })
+
+  it('rejects invalid email', () => {
+    expect(step3Schema.safeParse({ ...valid, email: 'not-email' }).success).toBe(false)
+  })
+
+  it('rejects invalid phone', () => {
+    expect(step3Schema.safeParse({ ...valid, phone: 'abc' }).success).toBe(false)
   })
 
   it('rejects invalid relationType', () => {
-    expect(step3Schema.safeParse({ relationType: '朋友' }).success).toBe(false)
+    expect(step3Schema.safeParse({ ...valid, relationType: '朋友' }).success).toBe(false)
   })
 })
 
@@ -81,10 +99,17 @@ describe('registerApiSchema', () => {
       password: 'password123',
       realName: '王小明',
       identityNo: 'A123456789',
+      gender: '男',
       identityType: 1,
       birthDate: '1990-01-01',
       expiryDate: '2030-12-31',
+      disabilityLevel: '中度',
+      assistiveDevice: '輪椅',
       address: '花蓮縣花蓮市中正路1號',
+      applicantName: '王大明',
+      relationType: '子女',
+      email: 'user@example.com',
+      phone: '0912345678',
     }
     expect(registerApiSchema.safeParse(payload).success).toBe(true)
   })

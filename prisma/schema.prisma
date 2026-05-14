@@ -49,6 +49,9 @@ model PassengerProfile {
   RealName        String?   @db.NVarChar(50)
   IdentityNo      String?   @unique @db.NVarChar(20)
   IdentityType    Int?      // 1=復康(身障), 2=長照(失能)
+  Gender          Int?      // 1=男, 2=女, 0=其他
+  Email           String?   @db.VarChar(255)
+  Phone           String?   @db.VarChar(20)
   DisabilityLevel String?   @db.NVarChar(20)
   ExpiryDate      DateTime? @db.Date
   BirthDate       DateTime? @db.Date

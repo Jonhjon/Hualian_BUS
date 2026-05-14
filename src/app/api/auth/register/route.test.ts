@@ -21,10 +21,17 @@ const validBody = {
   password: 'password123',
   realName: '王小明',
   identityNo: 'A123456789',
+  gender: '男',
   identityType: 1,
   birthDate: '1990-01-01',
   expiryDate: '2030-12-31',
+  disabilityLevel: '中度',
+  assistiveDevice: '輪椅',
   address: '花蓮縣花蓮市中正路1號',
+  applicantName: '王大明',
+  relationType: '子女',
+  email: 'user@example.com',
+  phone: '0912345678',
 }
 
 function makeRequest(body: unknown) {
@@ -74,5 +81,20 @@ describe('POST /api/auth/register', () => {
   it('returns 422 on short password', async () => {
     const res = await POST(makeRequest({ ...validBody, password: '1234567' }) as never)
     expect(res.status).toBe(422)
+  })
+
+  it('returns JSON 500 when registration transaction fails', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    ;(mockPrisma.account.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(mockPrisma.passengerProfile.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(mockPrisma.$transaction as jest.Mock).mockRejectedValue(new Error('database unavailable'))
+
+    const res = await POST(makeRequest(validBody) as never)
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toBe('申請失敗，請稍後再試')
+    expect(JSON.stringify(data)).not.toContain('database unavailable')
+    spy.mockRestore()
   })
 })

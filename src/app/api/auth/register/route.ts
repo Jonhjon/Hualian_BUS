@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/auth/password'
 import { ok, err } from '@/lib/api/response'
 
 const PASSENGER_ROLE_ID = 4
+const GENDER_MAP: Record<string, number> = { '男': 1, '女': 2, '其他': 0 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -32,27 +33,32 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(input.password)
 
-  await prisma.$transaction(async tx => {
-    const account = await tx.account.create({
-      data: {
-        Username: input.username,
-        PasswordHash: passwordHash,
-        RoleID: PASSENGER_ROLE_ID,
-      },
-    })
-    const profile = await tx.passengerProfile.create({
-      data: {
-        AccountID: account.AccountID,
-        RealName: input.realName,
-        IdentityNo: input.identityNo,
-        IdentityType: input.identityType,
-        BirthDate: input.birthDate ? new Date(input.birthDate) : null,
-        ExpiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
-        Address: input.address,
-        AuditStatus: 0,
-      },
-    })
-    if (input.applicantName && input.relationType) {
+  try {
+    await prisma.$transaction(async tx => {
+      const account = await tx.account.create({
+        data: {
+          Username: input.username,
+          PasswordHash: passwordHash,
+          RoleID: PASSENGER_ROLE_ID,
+        },
+      })
+      const profile = await tx.passengerProfile.create({
+        data: {
+          AccountID: account.AccountID,
+          RealName: input.realName,
+          IdentityNo: input.identityNo,
+          IdentityType: input.identityType,
+          Gender: GENDER_MAP[input.gender] ?? 0,
+          Email: input.email,
+          Phone: input.phone,
+          DisabilityLevel: input.disabilityLevel,
+          AssistiveDevice: input.assistiveDevice,
+          BirthDate: input.birthDate ? new Date(input.birthDate) : null,
+          ExpiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
+          Address: input.address,
+          AuditStatus: 0,
+        },
+      })
       await tx.relationship.create({
         data: {
           PassengerID: profile.PassengerID,
@@ -60,8 +66,11 @@ export async function POST(req: NextRequest) {
           RelationType: input.relationType,
         },
       })
-    }
-  })
+    })
+  } catch (error) {
+    console.error('Registration failed', error)
+    return err('申請失敗，請稍後再試', 500)
+  }
 
   return ok({ message: '申請成功，等待審核' }, 201)
 }

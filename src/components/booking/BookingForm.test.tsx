@@ -28,7 +28,18 @@ describe('BookingForm', () => {
     jest.clearAllMocks()
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ data: { identityType: 2, auditStatus: 1, disabilityLevel: '中度', assistiveDevice: '輪椅' } }),
+      json: async () => ({
+        data: {
+          realName: '王小明',
+          gender: '男',
+          identityType: 2,
+          auditStatus: 1,
+          birthDate: '1990-01-01T00:00:00.000Z',
+          expiryDate: '2030-12-31T00:00:00.000Z',
+          disabilityLevel: '中度',
+          assistiveDevice: '輪椅',
+        },
+      }),
     })
     ;(useCreateBooking as jest.Mock).mockReturnValue({
       mutateAsync: mockMutateAsync,
@@ -41,12 +52,13 @@ describe('BookingForm', () => {
     jest.resetAllMocks()
   })
 
-  it('renders required fields', () => {
+  it('renders required fields', async () => {
     render(<BookingForm />, { wrapper: Wrapper })
     expect(screen.getByLabelText('預約日期')).toBeInTheDocument()
     expect(screen.getByLabelText('上車時段')).toBeInTheDocument()
     expect(screen.getByLabelText('上車地址')).toBeInTheDocument()
     expect(screen.getByLabelText('下車地址')).toBeInTheDocument()
+    expect(await screen.findByText('已依個人資料帶入：長照（失能）')).toBeInTheDocument()
   })
 
   it('auto-fills booking type from the user profile', async () => {
@@ -63,6 +75,15 @@ describe('BookingForm', () => {
     const device = await screen.findByLabelText('輔具（選填）')
     await waitFor(() => expect(disability).toHaveValue('中度'))
     await waitFor(() => expect(device).toHaveValue('輪椅'))
+  })
+
+  it('shows approved passenger profile data on the booking form', async () => {
+    render(<BookingForm />, { wrapper: Wrapper })
+    expect(await screen.findByText('王小明')).toBeInTheDocument()
+    expect(screen.getByText('男')).toBeInTheDocument()
+    expect(screen.getByText('類別')).toBeInTheDocument()
+    expect(screen.getAllByText('中度').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('輪椅').length).toBeGreaterThan(0)
   })
 
   it('shows return pickup hour when 去回程 is checked', async () => {
@@ -109,7 +130,7 @@ describe('BookingForm', () => {
     expect(await screen.findAllByRole('alert')).not.toHaveLength(0)
   })
 
-  it('disables submit button while pending', () => {
+  it('disables submit button while pending', async () => {
     ;(useCreateBooking as jest.Mock).mockReturnValue({
       mutateAsync: mockMutateAsync,
       isPending: true,
@@ -117,6 +138,7 @@ describe('BookingForm', () => {
     })
     render(<BookingForm />, { wrapper: Wrapper })
     expect(screen.getByRole('button', { name: /送出/ })).toBeDisabled()
+    expect(await screen.findByText('已依個人資料帶入：長照（失能）')).toBeInTheDocument()
   })
 })
 
@@ -134,7 +156,18 @@ describe('BookingForm accessibility', () => {
     jest.clearAllMocks()
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ data: { identityType: 1, auditStatus: 1, disabilityLevel: null, assistiveDevice: null } }),
+      json: async () => ({
+        data: {
+          realName: '測試使用者',
+          gender: '女',
+          identityType: 1,
+          auditStatus: 1,
+          birthDate: '1990-01-01T00:00:00.000Z',
+          expiryDate: null,
+          disabilityLevel: null,
+          assistiveDevice: null,
+        },
+      }),
     })
     ;(useCreateBooking as jest.Mock).mockReturnValue({
       mutateAsync: jest.fn(),
@@ -149,6 +182,7 @@ describe('BookingForm accessibility', () => {
 
   it('has no axe violations on initial render', async () => {
     const { container } = render(<BookingForm />, { wrapper: Wrapper })
+    await screen.findByText('已依個人資料帶入：復康（身障）')
     expect(await axe(container)).toHaveNoViolations()
   })
 })

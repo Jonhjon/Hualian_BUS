@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Send } from 'lucide-react'
 import { useRegister } from '@/hooks/useAuth'
-import { step1Schema, step2Schema, step3Schema } from '@/lib/validators/register.schema'
+import { GENDER_OPTIONS, RELATION_TYPES, step1Schema, step2Schema, step3Schema } from '@/lib/validators/register.schema'
 import { Input, Select } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
@@ -17,7 +17,7 @@ type Step3 = z.infer<typeof step3Schema>
 
 const TOTAL_STEPS = 3
 
-const STEP_LABELS = ['帳號設定', '個人資料', '家屬資料'] as const
+const STEP_LABELS = ['帳號設定', '乘客資料', '申請聯絡'] as const
 
 function Stepper({ current }: { current: number }) {
   return (
@@ -116,6 +116,7 @@ export function RegisterForm() {
 
   const e1 = step1Form.formState.errors
   const e2 = step2Form.formState.errors
+  const e3 = step3Form.formState.errors
 
   return (
     <div>
@@ -184,7 +185,7 @@ export function RegisterForm() {
         <form
           onSubmit={step2Form.handleSubmit(handleStep2)}
           noValidate
-          aria-label="申請帳號 — 步驟 2：個人資料"
+          aria-label="申請帳號 — 步驟 2：乘客資料"
           className="flex flex-col gap-5"
         >
           <FormField label="真實姓名" htmlFor="realName" required error={e2.realName?.message}>
@@ -208,6 +209,21 @@ export function RegisterForm() {
               invalid={!!e2.identityNo}
               {...step2Form.register('identityNo')}
             />
+          </FormField>
+          <FormField label="性別" htmlFor="gender" required error={e2.gender?.message}>
+            <Select
+              id="gender"
+              aria-required={true}
+              aria-invalid={!!e2.gender}
+              aria-describedby={e2.gender ? 'gender-error' : undefined}
+              invalid={!!e2.gender}
+              {...step2Form.register('gender')}
+            >
+              <option value="">請選擇</option>
+              {GENDER_OPTIONS.map(gender => (
+                <option key={gender} value={gender}>{gender}</option>
+              ))}
+            </Select>
           </FormField>
           <FormField label="服務類型" htmlFor="identityType" required error={e2.identityType?.message}>
             <Select
@@ -254,6 +270,30 @@ export function RegisterForm() {
               />
             </FormField>
           </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField label="障礙等級／失能等級" htmlFor="disabilityLevel" required error={e2.disabilityLevel?.message}>
+              <Input
+                id="disabilityLevel"
+                autoComplete="off"
+                aria-required={true}
+                aria-invalid={!!e2.disabilityLevel}
+                aria-describedby={e2.disabilityLevel ? 'disabilitylevel-error' : undefined}
+                invalid={!!e2.disabilityLevel}
+                {...step2Form.register('disabilityLevel')}
+              />
+            </FormField>
+            <FormField label="輔具" htmlFor="assistiveDevice" required error={e2.assistiveDevice?.message} hint="若無使用輔具，請填「無」。">
+              <Input
+                id="assistiveDevice"
+                autoComplete="off"
+                aria-required={true}
+                aria-invalid={!!e2.assistiveDevice}
+                aria-describedby={e2.assistiveDevice ? 'assistivedevice-error' : 'assistivedevice-hint'}
+                invalid={!!e2.assistiveDevice}
+                {...step2Form.register('assistiveDevice')}
+              />
+            </FormField>
+          </div>
           <FormField label="地址" htmlFor="address" required error={e2.address?.message}>
             <Input
               id="address"
@@ -285,27 +325,61 @@ export function RegisterForm() {
         <form
           onSubmit={step3Form.handleSubmit(handleStep3)}
           noValidate
-          aria-label="申請帳號 — 步驟 3：家屬資料（選填）"
+          aria-label="申請帳號 — 步驟 3：申請人與聯絡資料"
           className="flex flex-col gap-5"
         >
           <p className="rounded-md bg-brand-50 px-4 py-3 text-sm text-ink-soft">
-            <strong className="text-ink">（選填）</strong>
-            若由家屬代為申請，請填寫以下資料。
+            若由本人申請，關係請選擇「本人」；若由親友代為申請，請填寫代申請人資訊。
           </p>
-          <FormField label="代申請人姓名" htmlFor="applicantName">
+          <FormField label="申請人姓名" htmlFor="applicantName" required error={e3.applicantName?.message}>
             <Input
               id="applicantName"
-              autoComplete="off"
+              autoComplete="name"
+              aria-required={true}
+              aria-invalid={!!e3.applicantName}
+              aria-describedby={e3.applicantName ? 'applicantname-error' : undefined}
+              invalid={!!e3.applicantName}
               {...step3Form.register('applicantName')}
             />
           </FormField>
-          <FormField label="關係" htmlFor="relationType">
-            <Select id="relationType" {...step3Form.register('relationType')}>
+          <FormField label="與乘客關係" htmlFor="relationType" required error={e3.relationType?.message}>
+            <Select
+              id="relationType"
+              aria-required={true}
+              aria-invalid={!!e3.relationType}
+              aria-describedby={e3.relationType ? 'relationtype-error' : undefined}
+              invalid={!!e3.relationType}
+              {...step3Form.register('relationType')}
+            >
               <option value="">請選擇</option>
-              {['配偶', '子女', '父母', '兄弟姐妹', '祖父母'].map(r => (
+              {RELATION_TYPES.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </Select>
+          </FormField>
+          <FormField label="電子郵件" htmlFor="email" required error={e3.email?.message}>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              aria-required={true}
+              aria-invalid={!!e3.email}
+              aria-describedby={e3.email ? 'email-error' : undefined}
+              invalid={!!e3.email}
+              {...step3Form.register('email')}
+            />
+          </FormField>
+          <FormField label="連絡電話" htmlFor="phone" required error={e3.phone?.message}>
+            <Input
+              id="phone"
+              type="tel"
+              autoComplete="tel"
+              aria-required={true}
+              aria-invalid={!!e3.phone}
+              aria-describedby={e3.phone ? 'phone-error' : undefined}
+              invalid={!!e3.phone}
+              {...step3Form.register('phone')}
+            />
           </FormField>
           {register_.error && (
             <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm font-medium text-danger">

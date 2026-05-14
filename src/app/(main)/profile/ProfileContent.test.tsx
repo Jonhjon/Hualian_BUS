@@ -31,7 +31,10 @@ describe('ProfileContent', () => {
         data: {
           username: 'testuser',
           realName: '測試使用者',
+          gender: '男',
           identityNo: 'A110000004',
+          email: 'testuser@example.com',
+          phone: '0912345678',
           identityType: 1,
           auditStatus: 1,
           birthDate: '1990-01-01T00:00:00.000Z',
@@ -45,6 +48,9 @@ describe('ProfileContent', () => {
     expect(await screen.findByText('帳號狀態：已通過')).toBeInTheDocument()
     expect(screen.getByText('testuser')).toBeInTheDocument()
     expect(screen.getByText('測試使用者')).toBeInTheDocument()
+    expect(screen.getByText('男')).toBeInTheDocument()
+    expect(screen.getByText('testuser@example.com')).toBeInTheDocument()
+    expect(screen.getByText('0912345678')).toBeInTheDocument()
   })
 
   it('shows a re-login link when the session is expired', async () => {
