@@ -14,6 +14,11 @@ jest.mock('@/lib/db', () => ({
   },
 }))
 
+jest.mock('@/lib/auth/captcha', () => ({
+  verifyCaptcha: jest.fn().mockResolvedValue(true),
+  isCaptchaConfigured: jest.fn().mockReturnValue(false),
+}))
+
 import { GET, POST } from './route'
 import { requireAuth } from '@/lib/auth/middleware'
 import { prisma } from '@/lib/db'

@@ -14,6 +14,19 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }))
 
+jest.mock('@hcaptcha/react-hcaptcha', () => {
+  const React = require('react')
+  const MockHCaptcha = React.forwardRef(function MockHCaptcha(
+    { onVerify }: { onVerify: (token: string) => void },
+    ref: React.Ref<unknown>,
+  ) {
+    React.useImperativeHandle(ref, () => ({ resetCaptcha: jest.fn() }))
+    React.useEffect(() => { onVerify('test-captcha-token') }, [])
+    return null
+  })
+  return MockHCaptcha
+})
+
 import { useCreateBooking } from '@/hooks/useBookings'
 
 function Wrapper({ children }: { children: React.ReactNode }) {
