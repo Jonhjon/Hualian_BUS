@@ -50,11 +50,24 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host '      Prisma Client 就緒' -ForegroundColor Green
 }
 
+# Clear stale dev servers before starting. A stale Next.js process can serve HTML
+# that points to deleted .next static assets, making the UI appear unstyled.
+Write-Host ''
+Write-Host '      清除舊的開發伺服器連線...' -ForegroundColor DarkGray
+3000..3010 | ForEach-Object {
+    $conn = Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue
+    if ($conn) {
+        $conn | ForEach-Object {
+            Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # Start Next.js dev server in new window
 Write-Host ''
 Write-Host '[3/3] 啟動 Next.js 開發伺服器...' -ForegroundColor Yellow
 
-$devScript = "Set-Location '$ProjectDir'; npm.cmd run dev"
+$devScript = "Set-Location '$ProjectDir'; npm.cmd run dev -- -p 3000"
 $devProc = Start-Process powershell -ArgumentList '-NoExit', '-Command', $devScript -PassThru
 
 # Save PID for stop.ps1

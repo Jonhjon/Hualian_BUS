@@ -19,12 +19,14 @@ if (Test-Path $pidFile) {
     Remove-Item $pidFile -Force
 }
 
-# Kill remaining process on port 3000
-$conn = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
-if ($conn) {
-    $conn | ForEach-Object {
-        Write-Host "  清除殘留程序 PID $($_.OwningProcess)..." -ForegroundColor DarkGray
-        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+# Kill remaining dev servers on common Next.js fallback ports
+3000..3010 | ForEach-Object {
+    $conn = Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue
+    if ($conn) {
+        $conn | ForEach-Object {
+            Write-Host "  清除 port $($_.LocalPort) 殘留程序 PID $($_.OwningProcess)..." -ForegroundColor DarkGray
+            Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
