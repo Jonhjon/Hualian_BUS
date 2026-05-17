@@ -13,6 +13,7 @@ import {
   Clock,
   Phone,
   Navigation as NavigationIcon,
+  CalendarDays,
 } from 'lucide-react'
 import type { Booking } from '@/hooks/useBookings'
 import { Container } from '@/components/ui/Container'
@@ -42,6 +43,10 @@ const STATUS_TONE: Record<number, Tone> = {
 const TYPE_LABEL: Record<number, string> = {
   1: '復康（身障）',
   2: '長照（失能）',
+}
+
+const GENDER_LABEL: Record<number, string> = {
+  0: '其他', 1: '男', 2: '女',
 }
 
 interface BookingDetailResponse {
@@ -122,6 +127,75 @@ export default function BookingDetailPage() {
           {STATUS_LABEL[booking.BookingStatus] ?? '未知'}
         </Badge>
       </header>
+
+      {booking.passenger && (
+        <div className="mb-5 grid gap-5 sm:grid-cols-2">
+          <Card>
+            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-bold text-ink">
+              <UserIcon size={16} aria-hidden="true" className="text-brand-500" />
+              乘客資料
+            </h2>
+            <dl className="grid grid-cols-2 gap-y-3 text-sm">
+              {booking.passenger.RealName && (
+                <>
+                  <dt className="text-ink-muted">姓名</dt>
+                  <dd className="font-semibold text-ink">{booking.passenger.RealName}</dd>
+                </>
+              )}
+              {booking.passenger.Gender != null && (
+                <>
+                  <dt className="text-ink-muted">性別</dt>
+                  <dd className="text-ink">{GENDER_LABEL[booking.passenger.Gender] ?? '—'}</dd>
+                </>
+              )}
+              {booking.passenger.DisabilityLevel && (
+                <>
+                  <dt className="text-ink-muted">等級</dt>
+                  <dd className="text-ink">{booking.passenger.DisabilityLevel}</dd>
+                </>
+              )}
+              {booking.passenger.AssistiveDevice && (
+                <>
+                  <dt className="text-ink-muted">輔具</dt>
+                  <dd className="text-ink">{booking.passenger.AssistiveDevice}</dd>
+                </>
+              )}
+              {booking.passenger.Phone && (
+                <>
+                  <dt className="inline-flex items-center gap-1 text-ink-muted"><Phone size={12} aria-hidden="true" />電話</dt>
+                  <dd className="text-ink">{booking.passenger.Phone}</dd>
+                </>
+              )}
+              {booking.passenger.ExpiryDate && (
+                <>
+                  <dt className="inline-flex items-center gap-1 text-ink-muted"><CalendarDays size={12} aria-hidden="true" />證明到期</dt>
+                  <dd className="text-ink">{new Date(booking.passenger.ExpiryDate).toLocaleDateString('zh-TW')}</dd>
+                </>
+              )}
+              {booking.CreatedAt && (
+                <>
+                  <dt className="text-ink-muted">訂車時間</dt>
+                  <dd className="text-ink">{new Date(booking.CreatedAt).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' })}</dd>
+                </>
+              )}
+            </dl>
+          </Card>
+
+          {booking.monthStats && (
+            <Card>
+              <h2 className="mb-4 text-base font-bold text-ink">本月統計</h2>
+              <dl className="grid grid-cols-2 gap-y-3 text-sm">
+                <dt className="text-ink-muted">本月訂車</dt>
+                <dd className="font-bold text-ink">{booking.monthStats.monthlyTotal} 趟</dd>
+                <dt className="text-ink-muted">實際搭乘</dt>
+                <dd className="font-bold text-success">{booking.monthStats.monthlyCompleted} 趟</dd>
+                <dt className="text-ink-muted">取消趟次</dt>
+                <dd className="font-bold text-danger">{booking.monthStats.monthlyCancelled} 趟</dd>
+              </dl>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <Card>

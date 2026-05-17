@@ -16,6 +16,17 @@ export async function GET(
   const booking = await prisma.bookings.findFirst({
     where: { BookingID: bookingId },
     include: {
+      passenger: {
+        select: {
+          RealName: true,
+          Gender: true,
+          DisabilityLevel: true,
+          AssistiveDevice: true,
+          ExpiryDate: true,
+          Phone: true,
+          account: { select: { Username: true } },
+        },
+      },
       dispatchTasks: {
         include: {
           vehicle: {
@@ -30,7 +41,18 @@ export async function GET(
   })
   if (!booking) return err('預約不存在', 404)
 
-  return ok(booking)
+  const pid = booking.PassengerID
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const [monthlyTotal, monthlyCompleted, monthlyCancelled] = await Promise.all([
+    prisma.bookings.count({ where: { PassengerID: pid, PickupTime: { gte: monthStart, lt: monthEnd } } }),
+    prisma.bookings.count({ where: { PassengerID: pid, BookingStatus: 4, PickupTime: { gte: monthStart, lt: monthEnd } } }),
+    prisma.bookings.count({ where: { PassengerID: pid, BookingStatus: 2, PickupTime: { gte: monthStart, lt: monthEnd } } }),
+  ])
+
+  return ok({ ...booking, monthStats: { monthlyTotal, monthlyCompleted, monthlyCancelled } })
 }
 
 export async function DELETE(
