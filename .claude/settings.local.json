@@ -27,7 +27,8 @@
       "Bash(\"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -enc UTF-8 \"Case1_花蓮縣政府復康巴士預約系統服務需求說明書.pdf\" -)",
       "Bash(node -e ' *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\軟工V2\\\\src\\\\components\" -Directory)",
-      "Bash(Select-Object -ExpandProperty Name)"
+      "Bash(Select-Object -ExpandProperty Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\Hualian_BUS\\\\test-results\" -Force -Recurse 2>$null | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}}, Length | Format-Table -AutoSize | Head -30)"
     ]
   }
 }

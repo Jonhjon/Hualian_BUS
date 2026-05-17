@@ -50,6 +50,20 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host '      Prisma Client 就緒' -ForegroundColor Green
 }
 
+# Check and optionally clear .next/ cache
+$NextDir = Join-Path $ProjectDir '.next'
+if (Test-Path $NextDir) {
+    Write-Host ''
+    Write-Host '[2.5/3] 偵測到舊的編譯快取（.next/）' -ForegroundColor DarkGray
+    $clearCache = Read-Host '        是否清除快取以避免跑版？(Y/N，預設 N)'
+    if ($clearCache -eq 'Y' -or $clearCache -eq 'y') {
+        Remove-Item -Recurse -Force $NextDir
+        Write-Host '        快取已清除，將重新編譯' -ForegroundColor Green
+    } else {
+        Write-Host '        保留快取，繼續啟動' -ForegroundColor DarkGray
+    }
+}
+
 # Clear stale dev servers before starting. A stale Next.js process can serve HTML
 # that points to deleted .next static assets, making the UI appear unstyled.
 Write-Host ''
