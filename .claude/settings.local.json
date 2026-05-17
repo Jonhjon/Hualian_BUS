@@ -28,7 +28,8 @@
       "Bash(node -e ' *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\軟工V2\\\\src\\\\components\" -Directory)",
       "Bash(Select-Object -ExpandProperty Name)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\Hualian_BUS\\\\test-results\" -Force -Recurse 2>$null | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}}, Length | Format-Table -AutoSize | Head -30)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\joonh\\\\OneDrive\\\\桌面\\\\Hualian_BUS\\\\test-results\" -Force -Recurse 2>$null | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}}, Length | Format-Table -AutoSize | Head -30)",
+      "Bash(dir *)"
     ]
   }
 }
