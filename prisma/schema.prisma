@@ -132,6 +132,7 @@ model Bookings {
   CompanionCount Int?
   BookingStatus  Int?      // 0=預約成功, 1=排班完成, 2=取消, 3=搭乘中, 4=已完趟, 5=後補
   IsRoundTrip    Boolean?
+  CreatedAt      DateTime? @default(now()) @db.DateTime
 
   passenger     PassengerProfile? @relation(fields: [PassengerID], references: [PassengerID], onDelete: NoAction, onUpdate: NoAction)
   dispatchTasks DispatchTasks[]
