@@ -14,20 +14,38 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }))
 
-jest.mock('@hcaptcha/react-hcaptcha', () => {
-  const React = require('react')
-  const MockHCaptcha = React.forwardRef(function MockHCaptcha(
-    { onVerify }: { onVerify: (token: string) => void },
-    ref: React.Ref<unknown>,
-  ) {
-    React.useImperativeHandle(ref, () => ({ resetCaptcha: jest.fn() }))
-    React.useEffect(() => { onVerify('test-captcha-token') }, [])
-    return null
-  })
-  return MockHCaptcha
-})
-
 import { useCreateBooking } from '@/hooks/useBookings'
+
+const MATH_CHALLENGE = { question: '3 + 5 = ?', challengeToken: 'test-challenge-token' }
+const MATH_ANSWER = '8'
+
+const PROFILE_RESPONSE = {
+  data: {
+    realName: '王小明',
+    gender: '男',
+    identityType: 2,
+    auditStatus: 1,
+    birthDate: '1990-01-01T00:00:00.000Z',
+    expiryDate: '2030-12-31T00:00:00.000Z',
+    disabilityLevel: '中度',
+    assistiveDevice: '輪椅',
+  },
+}
+
+function mockFetch(profileOverride?: object) {
+  global.fetch = jest.fn().mockImplementation((url: string) => {
+    if (url.includes('/api/captcha')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => MATH_CHALLENGE,
+      })
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => profileOverride ?? PROFILE_RESPONSE,
+    })
+  })
+}
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -39,21 +57,7 @@ describe('BookingForm', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: {
-          realName: '王小明',
-          gender: '男',
-          identityType: 2,
-          auditStatus: 1,
-          birthDate: '1990-01-01T00:00:00.000Z',
-          expiryDate: '2030-12-31T00:00:00.000Z',
-          disabilityLevel: '中度',
-          assistiveDevice: '輪椅',
-        },
-      }),
-    })
+    mockFetch()
     ;(useCreateBooking as jest.Mock).mockReturnValue({
       mutateAsync: mockMutateAsync,
       isPending: false,
@@ -72,6 +76,27 @@ describe('BookingForm', () => {
     expect(screen.getByLabelText('上車地址')).toBeInTheDocument()
     expect(screen.getByLabelText('下車地址')).toBeInTheDocument()
     expect(await screen.findByText('已依個人資料帶入：長照（失能）')).toBeInTheDocument()
+  })
+
+  it('renders math captcha challenge and answer input', async () => {
+    render(<BookingForm />, { wrapper: Wrapper })
+    expect(await screen.findByText(MATH_CHALLENGE.question)).toBeInTheDocument()
+    expect(screen.getByLabelText('算數驗證碼答案')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /換一題/ })).toBeInTheDocument()
+  })
+
+  it('fetches a new challenge when 換一題 is clicked', async () => {
+    render(<BookingForm />, { wrapper: Wrapper })
+    await screen.findByText(MATH_CHALLENGE.question)
+
+    await userEvent.click(screen.getByRole('button', { name: /換一題/ }))
+
+    await waitFor(() => {
+      const captchaCalls = (global.fetch as jest.Mock).mock.calls.filter(([url]: [string]) =>
+        url.includes('/api/captcha'),
+      )
+      expect(captchaCalls).toHaveLength(2)
+    })
   })
 
   it('auto-fills booking type from the user profile', async () => {
@@ -105,17 +130,34 @@ describe('BookingForm', () => {
     expect(screen.getByLabelText('回程時段')).toBeInTheDocument()
   })
 
+  it('shows captcha error when submitting without answering', async () => {
+    render(<BookingForm />, { wrapper: Wrapper })
+    await screen.findByText('已依個人資料帶入：長照（失能）')
+    await userEvent.type(screen.getByLabelText('預約日期'), getValidPickupDate())
+    await userEvent.selectOptions(screen.getByLabelText('上車時段'), '9')
+    await userEvent.type(screen.getByLabelText('上車地址'), '花蓮市中正路1號')
+    await userEvent.type(screen.getByLabelText('下車地址'), '花蓮車站')
+
+    await userEvent.click(screen.getByRole('button', { name: /送出/ }))
+
+    expect(await screen.findByText('請先完成算數驗證')).toBeInTheDocument()
+    expect(mockMutateAsync).not.toHaveBeenCalled()
+  })
+
   it('creates return trip with reversed pickup and dropoff addresses', async () => {
     mockMutateAsync.mockResolvedValue({ success: true })
     render(<BookingForm />, { wrapper: Wrapper })
 
     await screen.findByText('已依個人資料帶入：長照（失能）')
+    await screen.findByText(MATH_CHALLENGE.question)
+
     await userEvent.type(screen.getByLabelText('預約日期'), getValidPickupDate())
     await userEvent.selectOptions(screen.getByLabelText('上車時段'), '9')
     await userEvent.type(screen.getByLabelText('上車地址'), '花蓮市中正路1號')
     await userEvent.type(screen.getByLabelText('下車地址'), '花蓮車站')
     await userEvent.click(screen.getByLabelText('去回程'))
     await userEvent.selectOptions(screen.getByLabelText('回程時段'), '13')
+    await userEvent.type(screen.getByLabelText('算數驗證碼答案'), MATH_ANSWER)
     await userEvent.click(screen.getByRole('button', { name: /送出/ }))
 
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(2))
@@ -125,6 +167,7 @@ describe('BookingForm', () => {
         pickupHour: 9,
         pickupAddr: '花蓮市中正路1號',
         dropoffAddr: '花蓮車站',
+        captchaToken: `${MATH_ANSWER}:${MATH_CHALLENGE.challengeToken}`,
       }),
     )
     expect(mockMutateAsync).toHaveBeenNthCalledWith(
@@ -133,6 +176,7 @@ describe('BookingForm', () => {
         pickupHour: 13,
         pickupAddr: '花蓮車站',
         dropoffAddr: '花蓮市中正路1號',
+        captchaToken: `${MATH_ANSWER}:${MATH_CHALLENGE.challengeToken}`,
       }),
     )
   })
@@ -167,20 +211,17 @@ function getValidPickupDate() {
 describe('BookingForm accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: {
-          realName: '測試使用者',
-          gender: '女',
-          identityType: 1,
-          auditStatus: 1,
-          birthDate: '1990-01-01T00:00:00.000Z',
-          expiryDate: null,
-          disabilityLevel: null,
-          assistiveDevice: null,
-        },
-      }),
+    mockFetch({
+      data: {
+        realName: '測試使用者',
+        gender: '女',
+        identityType: 1,
+        auditStatus: 1,
+        birthDate: '1990-01-01T00:00:00.000Z',
+        expiryDate: null,
+        disabilityLevel: null,
+        assistiveDevice: null,
+      },
     })
     ;(useCreateBooking as jest.Mock).mockReturnValue({
       mutateAsync: jest.fn(),
@@ -196,6 +237,7 @@ describe('BookingForm accessibility', () => {
   it('has no axe violations on initial render', async () => {
     const { container } = render(<BookingForm />, { wrapper: Wrapper })
     await screen.findByText('已依個人資料帶入：復康（身障）')
+    await screen.findByText(MATH_CHALLENGE.question)
     expect(await axe(container)).toHaveNoViolations()
   })
 })

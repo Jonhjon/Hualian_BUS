@@ -1,10 +1,9 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import HCaptcha from '@hcaptcha/react-hcaptcha'
 import {
   AlertTriangle,
   CalendarDays,
@@ -14,6 +13,7 @@ import {
   Wrench,
   Send,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { bookingSchema, type BookingInput } from '@/lib/validators/booking.schema'
 import { useCreateBooking } from '@/hooks/useBookings'
@@ -22,8 +22,6 @@ import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
-
-const HCAPTCHA_SITEKEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY ?? ''
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 const IDENTITY_LABEL: Record<number, string> = { 1: '復康（身障）', 2: '長照（失能）' }
@@ -49,6 +47,11 @@ interface ProfileResponse {
     disabilityLevel: string | null
     assistiveDevice: string | null
   }
+}
+
+interface MathChallenge {
+  question: string
+  challengeToken: string
 }
 
 const AUDIT_MESSAGE: Record<number, string> = {
@@ -101,10 +104,10 @@ export function BookingForm() {
     queryFn: fetchProfile,
   })
 
-  const captchaRef = useRef<HCaptcha>(null)
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [mathChallenge, setMathChallenge] = useState<MathChallenge | null>(null)
+  const [mathAnswer, setMathAnswer] = useState('')
   const [captchaError, setCaptchaError] = useState<string | null>(null)
-  const captchaEnabled = HCAPTCHA_SITEKEY.length > 0
+  const [captchaLoading, setCaptchaLoading] = useState(false)
 
   const {
     register,
@@ -141,16 +144,34 @@ export function BookingForm() {
     if (profileAssistiveDevice) setValue('assistiveDevice', profileAssistiveDevice)
   }, [profileAssistiveDevice, setValue])
 
+  async function fetchCaptcha() {
+    setCaptchaLoading(true)
+    setMathAnswer('')
+    setCaptchaError(null)
+    try {
+      const data = await apiFetch<MathChallenge>('/api/captcha')
+      setMathChallenge(data)
+    } catch {
+      setCaptchaError('無法載入驗證題目，請稍後再試')
+    } finally {
+      setCaptchaLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCaptcha()
+  }, [])
+
   async function onSubmit(data: BookingInput) {
-    if (captchaEnabled && !captchaToken) {
-      setCaptchaError('請先完成機器人驗證')
+    if (!mathChallenge || !mathAnswer.trim()) {
+      setCaptchaError('請先完成算數驗證')
       return
     }
     setCaptchaError(null)
 
+    const captchaToken = `${mathAnswer.trim()}:${mathChallenge.challengeToken}`
     const bookingData = hasValidIdentityType ? { ...data, bookingType: identityType } : data
-    const firstPayload = { ...bookingData, captchaToken: captchaToken ?? undefined }
-    await create.mutateAsync(firstPayload)
+    await create.mutateAsync({ ...bookingData, captchaToken })
     if (data.isRoundTrip && data.returnPickupHour) {
       await create.mutateAsync({
         ...bookingData,
@@ -158,11 +179,10 @@ export function BookingForm() {
         pickupAddr: data.dropoffAddr,
         dropoffAddr: data.pickupAddr,
         isRoundTrip: true,
-        captchaToken: captchaToken ?? undefined,
+        captchaToken,
       })
     }
-    captchaRef.current?.resetCaptcha()
-    setCaptchaToken(null)
+    await fetchCaptcha()
     router.push('/bookings')
   }
 
@@ -339,31 +359,69 @@ export function BookingForm() {
         )}
       </Card>
 
-      {captchaEnabled ? (
-        <div className="flex flex-col gap-2">
-          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-soft">
-            <Wrench size={14} aria-hidden="true" />
-            機器人驗證
-          </p>
-          <HCaptcha
-            ref={captchaRef}
-            sitekey={HCAPTCHA_SITEKEY}
-            onVerify={token => {
-              setCaptchaToken(token)
-              setCaptchaError(null)
-            }}
-            onExpire={() => setCaptchaToken(null)}
-            onError={() => setCaptchaToken(null)}
-          />
-          {captchaError && (
-            <p role="alert" className="text-sm font-medium text-danger">{captchaError}</p>
-          )}
-        </div>
-      ) : (
-        <p className="rounded-md bg-brand-50 px-3 py-2 text-xs text-ink-muted">
-          （開發模式：未設定 HCaptcha sitekey，已略過機器人驗證）
-        </p>
-      )}
+      <Card>
+        <SectionTitle
+          icon={<Wrench size={18} />}
+          title="算數驗證"
+          description="請計算以下算式並填入答案，防止自動化程式送出預約"
+        />
+        {captchaLoading ? (
+          <p className="text-sm text-ink-muted">載入驗證題目中...</p>
+        ) : mathChallenge ? (
+          <div className="flex flex-col gap-3">
+            <div
+              className="inline-flex w-fit items-center justify-center rounded-lg bg-accent-50 px-6 py-4"
+              aria-live="polite"
+              aria-label={`算數驗證：${mathChallenge.question}`}
+            >
+              <span className="text-2xl font-bold tracking-widest text-accent-600">
+                {mathChallenge.question}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="captchaAnswer"
+                type="number"
+                inputMode="numeric"
+                placeholder="輸入答案"
+                aria-label="算數驗證碼答案"
+                aria-describedby={captchaError ? 'captcha-error' : undefined}
+                invalid={!!captchaError}
+                value={mathAnswer}
+                onChange={e => {
+                  setMathAnswer(e.target.value)
+                  if (captchaError) setCaptchaError(null)
+                }}
+                className="w-28"
+                min={0}
+                max={99}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={fetchCaptcha}
+                disabled={captchaLoading}
+                leftIcon={<RefreshCw size={14} aria-hidden="true" />}
+              >
+                換一題
+              </Button>
+            </div>
+            {captchaError && (
+              <p id="captcha-error" role="alert" className="text-sm font-medium text-danger">
+                {captchaError}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-danger">{captchaError ?? '無法載入驗證題目'}</p>
+            <Button type="button" variant="secondary" size="sm" onClick={fetchCaptcha}>
+              重試
+            </Button>
+          </div>
+        )}
+      </Card>
 
       {create.error && (
         <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
