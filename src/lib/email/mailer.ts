@@ -1,12 +1,13 @@
 import nodemailer from 'nodemailer'
 
 function createTransport() {
-  const { EMAIL_HOST, EMAIL_USER, EMAIL_PASS } = process.env
+  const { EMAIL_HOST, EMAIL_USER, EMAIL_PASS, EMAIL_PORT } = process.env
   if (!EMAIL_HOST) return null
+  const port = EMAIL_PORT ? parseInt(EMAIL_PORT, 10) : 587
   return nodemailer.createTransport({
     host: EMAIL_HOST,
-    port: 587,
-    secure: false,
+    port,
+    secure: port === 465,
     auth: { user: EMAIL_USER, pass: EMAIL_PASS },
   })
 }

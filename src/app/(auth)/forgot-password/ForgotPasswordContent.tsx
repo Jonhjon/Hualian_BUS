@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircle2, Send } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Send } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
@@ -18,17 +18,23 @@ type Form = z.infer<typeof schema>
 
 export function ForgotPasswordContent() {
   const [sent, setSent] = useState(false)
+  const [apiError, setApiError] = useState('')
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver: zodResolver(schema),
   })
 
   async function onSubmit(data: Form) {
-    await apiFetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    setSent(true)
+    setApiError('')
+    try {
+      await apiFetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }, { fallbackErrorMessage: '寄送失敗，請稍後再試' })
+      setSent(true)
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : '寄送失敗，請稍後再試')
+    }
   }
 
   if (sent) {
@@ -72,6 +78,12 @@ export function ForgotPasswordContent() {
           {...register('email')}
         />
       </FormField>
+      {apiError && (
+        <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
+          <AlertCircle size={16} aria-hidden="true" />
+          {apiError}
+        </p>
+      )}
       <Button
         type="submit"
         variant="accent"
