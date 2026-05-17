@@ -48,7 +48,7 @@
 | 認證 | **JWT** (jose) + **bcryptjs** + httpOnly cookie |
 | Email | **Nodemailer** (SMTP) |
 | 地圖 | **Leaflet** + **OpenStreetMap** |
-| 防機器人 | **HCaptcha** |
+| 防機器人 | **內建數學驗證碼**（JWT-簽署） |
 | 單元測試 | **Jest** + **Testing Library** + **MSW** |
 | E2E 測試 | **Playwright** + **@axe-core/playwright** |
 
@@ -69,8 +69,9 @@
 # 1. 安裝依賴
 npm install
 
-# 2. 設定環境變數
-#    參考下方「環境變數」章節，建立 .env 檔案於專案根目錄
+# 2. 從範本建立 .env 並填入實際值（詳見下方「環境變數」章節）
+Copy-Item .env.example .env
+#    至少需要填入 DATABASE_URL 與 JWT_SECRET 才能啟動
 
 # 3. 產生 Prisma Client
 npm run db:generate
@@ -103,29 +104,20 @@ npm run dev
 # SQL Server 連線字串
 DATABASE_URL="sqlserver://<host>:<port>;database=<db>;user=<user>;password=<password>;encrypt=false;trustServerCertificate=true"
 
-# JWT 簽署密鑰（建議使用 32 bytes 隨機十六進制）
+# JWT 簽署密鑰（同時用於使用者 cookie、密碼重設 token、驗證碼 challenge token）
+# 產生方式：node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 JWT_SECRET="<random-32-bytes-hex>"
 
 # SMTP 設定（開發期間可留空，系統會 console 模擬寄信）
 EMAIL_HOST=""
+EMAIL_PORT="587"
 EMAIL_USER=""
 EMAIL_PASS=""
-
-# HCaptcha 金鑰（開發可用官方測試 token）
-HCAPTCHA_SECRET="<hcaptcha-secret>"
-NEXT_PUBLIC_HCAPTCHA_SITEKEY="<hcaptcha-sitekey>"
 ```
 
-### HCaptcha 開發測試 Token
+### 機器人防護
 
-開發階段可使用 HCaptcha 官方 Always-Pass 測試金鑰（會自動通過驗證）：
-
-```env
-HCAPTCHA_SECRET="0x0000000000000000000000000000000000000000"
-NEXT_PUBLIC_HCAPTCHA_SITEKEY="10000000-ffff-ffff-ffff-000000000001"
-```
-
-生產環境須改用 [hcaptcha.com](https://dashboard.hcaptcha.com/) 申請的真實金鑰。
+採自製數學驗證碼（例 `3 + 5 = ?`），透過 `GET /api/captcha` 取得題目與 JWT challenge token，使用者答題後以 `userAnswer:challengeToken` 格式回傳給 `POST /api/bookings` 驗證。共用 `JWT_SECRET`，無需額外設定金鑰。
 
 ---
 
@@ -173,7 +165,6 @@ NEXT_PUBLIC_HCAPTCHA_SITEKEY="10000000-ffff-ffff-ffff-000000000001"
 │   └── middleware.ts         # Next.js middleware：JWT 路由保護
 │
 ├── e2e/                      # Playwright 測試
-├── uploads/                  # 文件上傳目錄（非 public，須透過 API 下載）
 ├── start.ps1                 # 啟動腳本（檢查環境、清 port、開瀏覽器）
 ├── stop.ps1                  # 停止腳本（終止 port 3000–3010）
 ├── jest.config.ts
@@ -209,6 +200,12 @@ NEXT_PUBLIC_HCAPTCHA_SITEKEY="10000000-ffff-ffff-ffff-000000000001"
 | `GET` | `/api/bookings/[id]` | 預約詳情 |
 | `DELETE` | `/api/bookings/[id]` | 取消預約 |
 | `GET` | `/api/bookings/[id]/track` | 取得派車車輛 GPS 位置（30 秒輪詢） |
+
+### 驗證碼 Captcha
+
+| Method | Route | 說明 |
+|--------|-------|------|
+| `GET` | `/api/captcha` | 取得數學題與 JWT challenge token（5 分鐘效期），供 `POST /api/bookings` 防機器人驗證 |
 
 ### 公告 Announcements
 
@@ -298,7 +295,7 @@ Prisma schema 共 **17 個 models**，主要分為：
 | `Announcement` | 公告 |
 | `Feedback` | 意見回饋（1–5 星 + 評論） |
 | `Messages` | 訊息系統 |
-| `Documents` | 文件中介資料（檔案存 `./uploads/`） |
+
 
 ---
 
@@ -325,8 +322,7 @@ npm run test:e2e
 ### 重要 Mock 約定
 
 - 測試環境會透過 `nextJest()` 自動載入 `.env`
-- 認證 API 測試需 mock `@/lib/auth/captcha`，避免 HCaptcha 真實請求
-- 含 `<HCaptcha />` 的元件測試需 mock `@hcaptcha/react-hcaptcha`，否則表單會卡在驗證
+- 預約 API 測試需 mock `@/lib/auth/captcha` 的 `verifyCaptcha`，避免在測試中真實簽署 / 驗證 JWT challenge token（見 `src/app/api/bookings/route.test.ts:17`）
 
 ---
 

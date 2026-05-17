@@ -20,7 +20,7 @@
 | 伺服器狀態 | TanStack Query 5.x |
 | 用戶端狀態 | Zustand 4.x |
 | 地圖 | Leaflet + OpenStreetMap（免費） |
-| Anti-bot | HCaptcha |
+| Anti-bot | 內建數學驗證碼（JWT 簽署，共用 JWT_SECRET） |
 | 測試 | Jest + Testing Library + MSW + Playwright |
 
 ---
@@ -41,8 +41,6 @@ JWT_SECRET="<random 32 bytes>"
 EMAIL_HOST=""
 EMAIL_USER=""
 EMAIL_PASS=""
-HCAPTCHA_SECRET=""
-NEXT_PUBLIC_HCAPTCHA_SITEKEY=""
 ```
 
 ---
