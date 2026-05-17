@@ -10,16 +10,50 @@ export interface DispatchTaskSummary {
   driver: { DriverName: string | null; DriverNo: string } | null
 }
 
+export interface PassengerSummary {
+  RealName: string | null
+  Gender: number | null
+  DisabilityLevel: string | null
+  AssistiveDevice: string | null
+  ExpiryDate: string | null
+  Phone: string | null
+  account: { Username: string } | null
+}
+
+export interface MonthStats {
+  monthlyTotal: number
+  monthlyCompleted: number
+  monthlyCancelled: number
+}
+
 export interface Booking {
   BookingID: string
   BookingType: number
   PickupTime: string
+  CreatedAt?: string | null
   PickupAddr: string
   DropoffAddr: string
   CompanionCount: number
   BookingStatus: number
   IsRoundTrip: boolean
   dispatchTasks?: DispatchTaskSummary[]
+  passenger?: PassengerSummary | null
+  monthStats?: MonthStats
+}
+
+export interface MonthlyBookingSummary {
+  totalCount: number
+  completedCount: number
+  year: number
+  month: number
+}
+
+export interface MonthlyBookingResponse {
+  success: boolean
+  data: {
+    bookings: Booking[]
+    summary: MonthlyBookingSummary
+  }
 }
 
 export interface BookingListResponse {
@@ -76,6 +110,14 @@ export function useCancelBooking() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<CancelBookingResponse>(`/api/bookings/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+  })
+}
+
+export function useMonthlyBookings(year: number, month: number) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) })
+  return useQuery<MonthlyBookingResponse>({
+    queryKey: ['bookings', 'monthly', year, month],
+    queryFn: () => apiFetch<MonthlyBookingResponse>(`/api/bookings/monthly?${params}`),
   })
 }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { CalendarDays, PlusCircle } from 'lucide-react'
+import { CalendarDays, PlusCircle, TableProperties } from 'lucide-react'
 import { BookingListView } from '@/components/booking/BookingListView'
 import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -17,13 +17,22 @@ export default function BookingsPage() {
         description="管理您的預約紀錄、查看派車狀態與即時追蹤"
         icon={<CalendarDays size={22} aria-hidden="true" />}
         actions={
-          <Link
-            href="/bookings/new"
-            className="inline-flex h-11 items-center gap-1.5 rounded-md bg-accent-500 px-5 text-sm font-semibold text-white shadow-soft hover:bg-accent-700"
-          >
-            <PlusCircle size={16} aria-hidden="true" />
-            新增預約
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/bookings/monthly"
+              className="inline-flex h-11 items-center gap-1.5 rounded-md border border-border bg-surface px-4 text-sm font-semibold text-ink hover:bg-surface-2"
+            >
+              <TableProperties size={16} aria-hidden="true" />
+              月份明細
+            </Link>
+            <Link
+              href="/bookings/new"
+              className="inline-flex h-11 items-center gap-1.5 rounded-md bg-accent-500 px-5 text-sm font-semibold text-white shadow-soft hover:bg-accent-700"
+            >
+              <PlusCircle size={16} aria-hidden="true" />
+              新增預約
+            </Link>
+          </div>
         }
       />
       <BookingListView />
