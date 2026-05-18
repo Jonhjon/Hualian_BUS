@@ -18,7 +18,6 @@ const tooFarDate = new Date(today); tooFarDate.setDate(today.getDate() + 8)
 const tooFarDateStr = localStr(tooFarDate)
 
 const valid = {
-  bookingType: 1 as const,
   pickupDate: futureDateStr,
   pickupHour: 9,
   pickupAddr: '花蓮市中正路1號',
@@ -62,5 +61,44 @@ describe('bookingSchema', () => {
 
   it('rejects negative companionCount', () => {
     expect(bookingSchema.safeParse({ ...valid, companionCount: -1 }).success).toBe(false)
+  })
+
+  it('rejects isRoundTrip=true without returnPickupHour', () => {
+    const result = bookingSchema.safeParse({ ...valid, isRoundTrip: true })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const issue = result.error.issues.find(i => i.path.includes('returnPickupHour'))
+      expect(issue).toBeDefined()
+    }
+  })
+
+  it('rejects isRoundTrip=true with returnPickupHour <= pickupHour', () => {
+    expect(
+      bookingSchema.safeParse({
+        ...valid,
+        pickupHour: 10,
+        isRoundTrip: true,
+        returnPickupHour: 10,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('accepts isRoundTrip=true with valid returnPickupHour > pickupHour', () => {
+    expect(
+      bookingSchema.safeParse({
+        ...valid,
+        pickupHour: 10,
+        isRoundTrip: true,
+        returnPickupHour: 15,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('strips unknown fields like legacy bookingType', () => {
+    const result = bookingSchema.safeParse({ ...valid, bookingType: 2 })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect('bookingType' in result.data).toBe(false)
+    }
   })
 })

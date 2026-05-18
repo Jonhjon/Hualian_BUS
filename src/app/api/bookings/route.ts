@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth/middleware'
 import { bookingSchema, buildPickupDateTime } from '@/lib/validators/booking.schema'
 import { verifyCaptcha } from '@/lib/auth/captcha'
 import { ok, okPage, err } from '@/lib/api/response'
+
+class BookingConflictError extends Error {}
+class BookingQuotaError extends Error {}
 
 const ACTIVE_STATUSES = [0, 1, 3, 5]
 const MAX_ACTIVE = 3
@@ -109,34 +113,43 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Conflict check: same passenger, same exact PickupTime, active status
-  const conflict = await prisma.bookings.findFirst({
-    where: {
-      PassengerID: profile.PassengerID,
-      PickupTime: pickupTime,
-      BookingStatus: { in: ACTIVE_STATUSES },
-    },
-  })
-  if (conflict) return err('您已在該時段有預約', 409)
+  try {
+    const booking = await prisma.$transaction(
+      async (tx) => {
+        const conflict = await tx.bookings.findFirst({
+          where: {
+            PassengerID: profile.PassengerID,
+            PickupTime: pickupTime,
+            BookingStatus: { in: ACTIVE_STATUSES },
+          },
+        })
+        if (conflict) throw new BookingConflictError()
 
-  // Max active bookings check
-  const activeCount = await prisma.bookings.count({
-    where: { PassengerID: profile.PassengerID, BookingStatus: { in: ACTIVE_STATUSES } },
-  })
-  if (activeCount >= MAX_ACTIVE) return err('已達同時預約上限（3 筆）', 422)
+        const activeCount = await tx.bookings.count({
+          where: { PassengerID: profile.PassengerID, BookingStatus: { in: ACTIVE_STATUSES } },
+        })
+        if (activeCount >= MAX_ACTIVE) throw new BookingQuotaError()
 
-  const booking = await prisma.bookings.create({
-    data: {
-      PassengerID: profile.PassengerID,
-      BookingType: profile.IdentityType,
-      PickupTime: pickupTime,
-      PickupAddr: input.pickupAddr,
-      DropoffAddr: input.dropoffAddr,
-      CompanionCount: input.companionCount,
-      BookingStatus: 0,
-      IsRoundTrip: input.isRoundTrip,
-    },
-  })
+        return tx.bookings.create({
+          data: {
+            PassengerID: profile.PassengerID,
+            BookingType: profile.IdentityType,
+            PickupTime: pickupTime,
+            PickupAddr: input.pickupAddr,
+            DropoffAddr: input.dropoffAddr,
+            CompanionCount: input.companionCount,
+            BookingStatus: 0,
+            IsRoundTrip: input.isRoundTrip,
+          },
+        })
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    )
 
-  return ok(booking, 201)
+    return ok(booking, 201)
+  } catch (error) {
+    if (error instanceof BookingConflictError) return err('您已在該時段有預約', 409)
+    if (error instanceof BookingQuotaError) return err('已達同時預約上限（3 筆）', 422)
+    throw error
+  }
 }

@@ -7,12 +7,14 @@ jest.mock('@/lib/auth/middleware', () => ({
   requireAuth: jest.fn(),
 }))
 
-jest.mock('@/lib/db', () => ({
-  prisma: {
+jest.mock('@/lib/db', () => {
+  const prismaMock: Record<string, unknown> = {
     passengerProfile: { findFirst: jest.fn(), update: jest.fn() },
     bookings: { findFirst: jest.fn(), count: jest.fn(), findMany: jest.fn(), create: jest.fn() },
-  },
-}))
+  }
+  prismaMock.$transaction = jest.fn((cb: (tx: typeof prismaMock) => unknown) => cb(prismaMock))
+  return { prisma: prismaMock }
+})
 
 jest.mock('@/lib/auth/captcha', () => ({
   verifyCaptcha: jest.fn().mockResolvedValue(true),
@@ -40,7 +42,6 @@ function today(hourOffset = 3): string {
 }
 
 const validBody = {
-  bookingType: 1,
   pickupDate: today(),
   pickupHour: 9,
   pickupAddr: '花蓮市中正路1號',
@@ -138,6 +139,38 @@ describe('POST /api/bookings', () => {
   it('returns 422 for invalid booking data', async () => {
     const res = await POST(makeRequest({ ...validBody, companionCount: 5 }) as never)
     expect(res.status).toBe(422)
+  })
+
+  it('wraps conflict/quota/create in a Serializable transaction', async () => {
+    ;(mockPrisma.bookings.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(mockPrisma.bookings.count as jest.Mock).mockResolvedValue(0)
+    ;(mockPrisma.bookings.create as jest.Mock).mockResolvedValue({ BookingID: BigInt(1), BookingStatus: 0 })
+
+    const res = await POST(makeRequest() as never)
+
+    expect(res.status).toBe(201)
+    expect((mockPrisma as unknown as { $transaction: jest.Mock }).$transaction).toHaveBeenCalledTimes(1)
+    const call = (mockPrisma as unknown as { $transaction: jest.Mock }).$transaction.mock.calls[0]
+    expect(call[1]).toMatchObject({ isolationLevel: 'Serializable' })
+  })
+
+  it('does not create booking when conflict detected inside transaction', async () => {
+    ;(mockPrisma.bookings.findFirst as jest.Mock).mockResolvedValue({ BookingID: BigInt(99) })
+
+    const res = await POST(makeRequest() as never)
+
+    expect(res.status).toBe(409)
+    expect(mockPrisma.bookings.create).not.toHaveBeenCalled()
+  })
+
+  it('does not create booking when quota exceeded inside transaction', async () => {
+    ;(mockPrisma.bookings.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(mockPrisma.bookings.count as jest.Mock).mockResolvedValue(3)
+
+    const res = await POST(makeRequest() as never)
+
+    expect(res.status).toBe(422)
+    expect(mockPrisma.bookings.create).not.toHaveBeenCalled()
   })
 
   it('never updates passenger profile from booking endpoint (read-only fields)', async () => {
