@@ -107,12 +107,11 @@ describe('BookingForm', () => {
     expect(bookingType).toBeDisabled()
   })
 
-  it('prefills disability level and assistive device from the profile', async () => {
+  it('shows disability level and assistive device as read-only profile fields only', async () => {
     render(<BookingForm />, { wrapper: Wrapper })
-    const disability = await screen.findByLabelText('障礙等級／失能等級（選填）')
-    const device = await screen.findByLabelText('輔具（選填）')
-    await waitFor(() => expect(disability).toHaveValue('中度'))
-    await waitFor(() => expect(device).toHaveValue('輪椅'))
+    await screen.findByText('已依個人資料帶入：長照（失能）')
+    expect(screen.queryByLabelText('障礙等級／失能等級（選填）')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('輔具（選填）')).not.toBeInTheDocument()
   })
 
   it('shows approved passenger profile data on the booking form', async () => {
@@ -120,8 +119,8 @@ describe('BookingForm', () => {
     expect(await screen.findByText('王小明')).toBeInTheDocument()
     expect(screen.getByText('男')).toBeInTheDocument()
     expect(screen.getByText('類別')).toBeInTheDocument()
-    expect(screen.getAllByText('中度').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('輪椅').length).toBeGreaterThan(0)
+    expect(screen.getByText('中度')).toBeInTheDocument()
+    expect(screen.getByText('輪椅')).toBeInTheDocument()
   })
 
   it('shows return pickup hour when 去回程 is checked', async () => {

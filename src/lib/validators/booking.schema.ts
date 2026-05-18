@@ -47,8 +47,6 @@ export const bookingSchema = z
       .int()
       .optional()
       .refine(h => h === undefined || VALID_HOURS.includes(h), '回程時段無效'),
-    disabilityLevel: z.string().max(20).optional(),
-    assistiveDevice: z.string().max(50).optional(),
     captchaToken: z.string().min(1).optional(),
   })
   .refine(

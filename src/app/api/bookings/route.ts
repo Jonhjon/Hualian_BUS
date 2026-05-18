@@ -138,15 +138,5 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  if (input.disabilityLevel !== undefined || input.assistiveDevice !== undefined) {
-    await prisma.passengerProfile.update({
-      where: { PassengerID: profile.PassengerID },
-      data: {
-        ...(input.disabilityLevel !== undefined && { DisabilityLevel: input.disabilityLevel || null }),
-        ...(input.assistiveDevice !== undefined && { AssistiveDevice: input.assistiveDevice || null }),
-      },
-    })
-  }
-
   return ok(booking, 201)
 }

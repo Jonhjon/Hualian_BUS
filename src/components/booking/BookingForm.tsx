@@ -136,14 +136,6 @@ export function BookingForm() {
     }
   }, [hasValidIdentityType, identityType, setValue])
 
-  useEffect(() => {
-    if (profileDisabilityLevel) setValue('disabilityLevel', profileDisabilityLevel)
-  }, [profileDisabilityLevel, setValue])
-
-  useEffect(() => {
-    if (profileAssistiveDevice) setValue('assistiveDevice', profileAssistiveDevice)
-  }, [profileAssistiveDevice, setValue])
-
   async function fetchCaptcha() {
     setCaptchaLoading(true)
     setMathAnswer('')
@@ -290,26 +282,9 @@ export function BookingForm() {
             <ProfileItem label="輔具" value={profileAssistiveDevice ?? '—'} />
           </dl>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <FormField label="障礙等級／失能等級（選填）" htmlFor="disabilityLevel">
-              <Input
-                id="disabilityLevel"
-                autoComplete="off"
-                aria-invalid={!!errors.disabilityLevel}
-                invalid={!!errors.disabilityLevel}
-                {...register('disabilityLevel')}
-              />
-            </FormField>
-            <FormField label="輔具（選填）" htmlFor="assistiveDevice">
-              <Input
-                id="assistiveDevice"
-                autoComplete="off"
-                aria-invalid={!!errors.assistiveDevice}
-                invalid={!!errors.assistiveDevice}
-                {...register('assistiveDevice')}
-              />
-            </FormField>
-          </div>
+          <p className="text-xs text-ink-muted">
+            如需修改障礙等級／失能等級或輔具，請至「個人資料」頁。
+          </p>
 
           <FormField label="隨行人數" htmlFor="companionCount" hint="不含乘客本人">
             <Select

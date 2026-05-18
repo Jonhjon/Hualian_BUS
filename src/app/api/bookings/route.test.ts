@@ -140,25 +140,19 @@ describe('POST /api/bookings', () => {
     expect(res.status).toBe(422)
   })
 
-  it('updates passenger profile with disability level / assistive device when supplied', async () => {
+  it('never updates passenger profile from booking endpoint (read-only fields)', async () => {
     ;(mockPrisma.bookings.findFirst as jest.Mock).mockResolvedValue(null)
     ;(mockPrisma.bookings.count as jest.Mock).mockResolvedValue(0)
     ;(mockPrisma.bookings.create as jest.Mock).mockResolvedValue({ BookingID: BigInt(1), BookingStatus: 0 })
 
+    // Even if a stale client sends these legacy fields, the schema ignores them
+    // and the API must not write them back to PassengerProfile.
     const res = await POST(
-      makeRequest({ ...validBody, disabilityLevel: '中度', assistiveDevice: '輪椅' }) as never,
+      makeRequest({ ...validBody, disabilityLevel: '重度', assistiveDevice: '助行器' }) as never,
     )
 
     expect(res.status).toBe(201)
-    expect(mockPrisma.passengerProfile.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { PassengerID: PASSENGER_ID },
-        data: expect.objectContaining({
-          DisabilityLevel: '中度',
-          AssistiveDevice: '輪椅',
-        }),
-      }),
-    )
+    expect(mockPrisma.passengerProfile.update).not.toHaveBeenCalled()
   })
 })
 
