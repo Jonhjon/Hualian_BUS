@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { axe, toHaveNoViolations } from 'jest-axe'
@@ -7,14 +7,14 @@ import { BookingForm } from './BookingForm'
 expect.extend(toHaveNoViolations)
 
 jest.mock('@/hooks/useBookings', () => ({
-  useCreateBooking: jest.fn(),
+  useCreateBatchBooking: jest.fn(),
 }))
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }))
 
-import { useCreateBooking } from '@/hooks/useBookings'
+import { useCreateBatchBooking } from '@/hooks/useBookings'
 
 const MATH_CHALLENGE = { question: '3 + 5 = ?', challengeToken: 'test-challenge-token' }
 const MATH_ANSWER = '8'
@@ -58,7 +58,7 @@ describe('BookingForm', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFetch()
-    ;(useCreateBooking as jest.Mock).mockReturnValue({
+    ;(useCreateBatchBooking as jest.Mock).mockReturnValue({
       mutateAsync: mockMutateAsync,
       isPending: false,
       error: null,
@@ -132,7 +132,7 @@ describe('BookingForm', () => {
   it('shows captcha error when submitting without answering', async () => {
     render(<BookingForm />, { wrapper: Wrapper })
     await screen.findByText('已依個人資料帶入：長照（失能）')
-    await userEvent.type(screen.getByLabelText('預約日期'), getValidPickupDate())
+    fireEvent.change(screen.getByLabelText('預約日期'), { target: { value: getValidPickupDate() } })
     await userEvent.selectOptions(screen.getByLabelText('上車時段'), '9')
     await userEvent.type(screen.getByLabelText('上車地址'), '花蓮市中正路1號')
     await userEvent.type(screen.getByLabelText('下車地址'), '花蓮車站')
@@ -150,7 +150,7 @@ describe('BookingForm', () => {
     await screen.findByText('已依個人資料帶入：長照（失能）')
     await screen.findByText(MATH_CHALLENGE.question)
 
-    await userEvent.type(screen.getByLabelText('預約日期'), getValidPickupDate())
+    fireEvent.change(screen.getByLabelText('預約日期'), { target: { value: getValidPickupDate() } })
     await userEvent.selectOptions(screen.getByLabelText('上車時段'), '9')
     await userEvent.type(screen.getByLabelText('上車地址'), '花蓮市中正路1號')
     await userEvent.type(screen.getByLabelText('下車地址'), '花蓮車站')
@@ -159,22 +159,21 @@ describe('BookingForm', () => {
     await userEvent.type(screen.getByLabelText('算數驗證碼答案'), MATH_ANSWER)
     await userEvent.click(screen.getByRole('button', { name: /送出/ }))
 
-    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(2))
-    expect(mockMutateAsync).toHaveBeenNthCalledWith(
-      1,
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1))
+    expect(mockMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        pickupHour: 9,
-        pickupAddr: '花蓮市中正路1號',
-        dropoffAddr: '花蓮車站',
-        captchaToken: `${MATH_ANSWER}:${MATH_CHALLENGE.challengeToken}`,
-      }),
-    )
-    expect(mockMutateAsync).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        pickupHour: 13,
-        pickupAddr: '花蓮車站',
-        dropoffAddr: '花蓮市中正路1號',
+        outbound: expect.objectContaining({
+          pickupHour: 9,
+          pickupAddr: '花蓮市中正路1號',
+          dropoffAddr: '花蓮車站',
+          isRoundTrip: true,
+        }),
+        returnTrip: expect.objectContaining({
+          pickupHour: 13,
+          pickupAddr: '花蓮車站',
+          dropoffAddr: '花蓮市中正路1號',
+          isRoundTrip: false,
+        }),
         captchaToken: `${MATH_ANSWER}:${MATH_CHALLENGE.challengeToken}`,
       }),
     )
@@ -187,7 +186,7 @@ describe('BookingForm', () => {
   })
 
   it('disables submit button while pending', async () => {
-    ;(useCreateBooking as jest.Mock).mockReturnValue({
+    ;(useCreateBatchBooking as jest.Mock).mockReturnValue({
       mutateAsync: mockMutateAsync,
       isPending: true,
       error: null,
@@ -222,7 +221,7 @@ describe('BookingForm accessibility', () => {
         assistiveDevice: null,
       },
     })
-    ;(useCreateBooking as jest.Mock).mockReturnValue({
+    ;(useCreateBatchBooking as jest.Mock).mockReturnValue({
       mutateAsync: jest.fn(),
       isPending: false,
       error: null,

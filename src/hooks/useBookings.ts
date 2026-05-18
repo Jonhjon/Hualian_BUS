@@ -105,6 +105,19 @@ export function useCreateBooking() {
   })
 }
 
+export function useCreateBatchBooking() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      apiFetch('/api/bookings/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+  })
+}
+
 export function useCancelBooking() {
   const queryClient = useQueryClient()
   return useMutation({

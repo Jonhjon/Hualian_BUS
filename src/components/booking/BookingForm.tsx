@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -16,24 +16,21 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { bookingSchema, type BookingInput } from '@/lib/validators/booking.schema'
-import { useCreateBooking } from '@/hooks/useBookings'
+import { useCreateBatchBooking } from '@/hooks/useBookings'
 import { apiFetch } from '@/lib/api/client'
 import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
+import { getAvailableHours, toLocalDateString } from '@/lib/booking/availableHours'
+import { getDefaultBookingValues } from '@/lib/booking/defaults'
 
-const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 const IDENTITY_LABEL: Record<number, string> = { 1: '復康（身障）', 2: '長照（失能）' }
 
-function localStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function getDateRange() {
-  const today = new Date(); today.setHours(0, 0, 0, 0)
+function getDateRange(now: Date) {
+  const today = new Date(now); today.setHours(0, 0, 0, 0)
   const max = new Date(today); max.setDate(max.getDate() + 7)
-  return { min: localStr(today), max: localStr(max) }
+  return { min: toLocalDateString(today), max: toLocalDateString(max) }
 }
 
 interface ProfileResponse {
@@ -97,8 +94,9 @@ function ProfileItem({ label, value }: { label: string; value: string }) {
 
 export function BookingForm() {
   const router = useRouter()
-  const create = useCreateBooking()
-  const { min, max } = getDateRange()
+  const create = useCreateBatchBooking()
+  const [now, setNow] = useState<Date>(() => new Date())
+  const { min, max } = getDateRange(now)
   const profile = useQuery({
     queryKey: ['profile'],
     queryFn: fetchProfile,
@@ -114,10 +112,11 @@ export function BookingForm() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<BookingInput>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { bookingType: 1, companionCount: 0, isRoundTrip: false },
+    defaultValues: { companionCount: 0, isRoundTrip: false },
   })
 
   const profileData = profile.data?.data
@@ -129,12 +128,55 @@ export function BookingForm() {
   const isApproved = auditStatus === 1
   const auditMessage = typeof auditStatus === 'number' ? AUDIT_MESSAGE[auditStatus] : undefined
   const isRoundTrip = watch('isRoundTrip')
+  const pickupDate = watch('pickupDate')
+  const pickupHour = watch('pickupHour')
+  const returnPickupHour = watch('returnPickupHour')
+
+  const pickupHours = useMemo(
+    () => getAvailableHours(pickupDate, now),
+    [pickupDate, now],
+  )
+  const returnHours = useMemo(
+    () => getAvailableHours(pickupDate, now, pickupHour),
+    [pickupDate, now, pickupHour],
+  )
+  const hasNoPickupHours = pickupHours.length === 0
+  const hasNoReturnHours = isRoundTrip && returnHours.length === 0
 
   useEffect(() => {
-    if (hasValidIdentityType) {
-      setValue('bookingType', identityType)
+    setNow(new Date())
+    const interval = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    if (getValues('pickupDate')) return
+    const defaults = getDefaultBookingValues(new Date())
+    setValue('pickupDate', defaults.pickupDate)
+    setValue('pickupHour', defaults.pickupHour)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (pickupHour === undefined) return
+    if (pickupHours.length === 0) return
+    if (!pickupHours.includes(pickupHour)) {
+      setValue('pickupHour', pickupHours[0])
     }
-  }, [hasValidIdentityType, identityType, setValue])
+  }, [pickupHours, pickupHour, setValue])
+
+  useEffect(() => {
+    if (!isRoundTrip) {
+      if (returnPickupHour !== undefined) {
+        setValue('returnPickupHour', undefined)
+      }
+      return
+    }
+    if (returnHours.length === 0) return
+    if (returnPickupHour === undefined || !returnHours.includes(returnPickupHour)) {
+      setValue('returnPickupHour', returnHours[0])
+    }
+  }, [isRoundTrip, returnHours, returnPickupHour, setValue])
 
   async function fetchCaptcha() {
     setCaptchaLoading(true)
@@ -162,17 +204,33 @@ export function BookingForm() {
     setCaptchaError(null)
 
     const captchaToken = `${mathAnswer.trim()}:${mathChallenge.challengeToken}`
-    const bookingData = hasValidIdentityType ? { ...data, bookingType: identityType } : data
-    await create.mutateAsync({ ...bookingData, captchaToken })
-    if (data.isRoundTrip && data.returnPickupHour) {
-      await create.mutateAsync({
-        ...bookingData,
-        pickupHour: data.returnPickupHour,
-        pickupAddr: data.dropoffAddr,
-        dropoffAddr: data.pickupAddr,
-        isRoundTrip: true,
-        captchaToken,
-      })
+    const outbound = {
+      pickupDate: data.pickupDate,
+      pickupHour: data.pickupHour,
+      pickupAddr: data.pickupAddr,
+      dropoffAddr: data.dropoffAddr,
+      companionCount: data.companionCount,
+      isRoundTrip: data.isRoundTrip,
+    }
+    const returnTrip = data.isRoundTrip && data.returnPickupHour
+      ? {
+          pickupDate: data.pickupDate,
+          pickupHour: data.returnPickupHour,
+          pickupAddr: data.dropoffAddr,
+          dropoffAddr: data.pickupAddr,
+          companionCount: data.companionCount,
+          isRoundTrip: false,
+        }
+      : undefined
+    try {
+      await create.mutateAsync({ outbound, returnTrip, captchaToken })
+    } catch (error) {
+      await fetchCaptcha()
+      const message = error instanceof Error ? error.message : ''
+      if (message.includes('驗證')) {
+        setCaptchaError('驗證碼錯誤，已換新題目，請重新作答')
+      }
+      throw error
     }
     await fetchCaptcha()
     router.push('/bookings')
@@ -203,18 +261,29 @@ export function BookingForm() {
               {...register('pickupDate')}
             />
           </FormField>
-          <FormField label="上車時段" htmlFor="pickupHour" required error={errors.pickupHour?.message}>
+          <FormField
+            label="上車時段"
+            htmlFor="pickupHour"
+            required
+            error={errors.pickupHour?.message}
+            hint={hasNoPickupHours ? '今日已無可預約時段，請改選其他日期' : undefined}
+          >
             <Select
               id="pickupHour"
               aria-required={true}
-              aria-invalid={!!errors.pickupHour}
+              aria-invalid={!!errors.pickupHour || hasNoPickupHours}
               aria-describedby={errors.pickupHour ? 'pickuphour-error' : undefined}
-              invalid={!!errors.pickupHour}
+              invalid={!!errors.pickupHour || hasNoPickupHours}
+              disabled={hasNoPickupHours}
               {...register('pickupHour', { valueAsNumber: true })}
             >
-              {HOURS.map(h => (
-                <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-              ))}
+              {pickupHours.length === 0 ? (
+                <option value="">無可預約時段</option>
+              ) : (
+                pickupHours.map(h => (
+                  <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                ))
+              )}
             </Select>
           </FormField>
         </div>
@@ -254,10 +323,12 @@ export function BookingForm() {
               id="bookingType"
               aria-required={true}
               disabled
-              {...register('bookingType', { valueAsNumber: true })}
+              value={hasValidIdentityType ? String(identityType) : ''}
+              onChange={() => { /* read-only, value derived from profile */ }}
             >
-              <option value={1}>復康（身障）</option>
-              <option value={2}>長照（失能）</option>
+              <option value="">—</option>
+              <option value="1">復康（身障）</option>
+              <option value="2">長照（失能）</option>
             </Select>
             {profile.isLoading && <p className="mt-1 text-xs text-ink-muted">正在帶入帳號服務類型...</p>}
             {hasValidIdentityType && (
@@ -320,14 +391,26 @@ export function BookingForm() {
 
         {isRoundTrip && (
           <div className="mt-4">
-            <FormField label="回程時段" htmlFor="returnPickupHour">
+            <FormField
+              label="回程時段"
+              htmlFor="returnPickupHour"
+              error={errors.returnPickupHour?.message}
+              hint={hasNoReturnHours ? '去程時段已是當日最後時段，請改選較早的去程' : undefined}
+            >
               <Select
                 id="returnPickupHour"
+                aria-invalid={!!errors.returnPickupHour || hasNoReturnHours}
+                invalid={!!errors.returnPickupHour || hasNoReturnHours}
+                disabled={hasNoReturnHours}
                 {...register('returnPickupHour', { valueAsNumber: true })}
               >
-                {HOURS.map(h => (
-                  <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                ))}
+                {returnHours.length === 0 ? (
+                  <option value="">無可選回程時段</option>
+                ) : (
+                  returnHours.map(h => (
+                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                  ))
+                )}
               </Select>
             </FormField>
           </div>
@@ -412,7 +495,14 @@ export function BookingForm() {
           size="lg"
           fullWidth
           loading={create.isPending}
-          disabled={create.isPending || profile.isLoading || !hasValidIdentityType || !isApproved}
+          disabled={
+            create.isPending ||
+            profile.isLoading ||
+            !hasValidIdentityType ||
+            !isApproved ||
+            hasNoPickupHours ||
+            hasNoReturnHours
+          }
           leftIcon={<Send size={18} aria-hidden="true" />}
         >
           {create.isPending ? '送出中...' : '送出預約'}
