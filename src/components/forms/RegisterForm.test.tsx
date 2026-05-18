@@ -92,7 +92,7 @@ describe('RegisterForm', () => {
     await userEvent.selectOptions(screen.getByLabelText('服務類型'), '1')
     await userEvent.type(screen.getByLabelText('生日'), '1990-01-01')
     await userEvent.type(screen.getByLabelText('證明到期日'), '2030-12-31')
-    await userEvent.type(screen.getByLabelText('障礙等級／失能等級'), '中度')
+    await userEvent.selectOptions(screen.getByLabelText('障礙等級'), '中度')
     await userEvent.type(screen.getByLabelText('輔具'), '輪椅')
     await userEvent.type(screen.getByLabelText('地址'), '花蓮縣花蓮市中正路1號')
     await userEvent.click(screen.getByRole('button', { name: /下一步/ }))
@@ -101,6 +101,39 @@ describe('RegisterForm', () => {
     expect(screen.getByLabelText('與乘客關係')).toBeInTheDocument()
     expect(screen.getByLabelText('電子郵件')).toBeInTheDocument()
     expect(screen.getByLabelText('連絡電話')).toBeInTheDocument()
+  })
+
+  it('disables disability dropdown until service type is chosen', async () => {
+    renderForm()
+    await userEvent.type(screen.getByLabelText('帳號'), 'validuser')
+    await userEvent.type(screen.getByLabelText('密碼'), 'password123')
+    await userEvent.type(screen.getByLabelText('確認密碼'), 'password123')
+    await userEvent.click(screen.getByRole('button', { name: /下一步/ }))
+
+    const disability = await screen.findByLabelText('障礙等級／失能等級')
+    expect(disability).toBeDisabled()
+  })
+
+  it('switches disability options when service type changes from 復康 to 長照', async () => {
+    renderForm()
+    await userEvent.type(screen.getByLabelText('帳號'), 'validuser')
+    await userEvent.type(screen.getByLabelText('密碼'), 'password123')
+    await userEvent.type(screen.getByLabelText('確認密碼'), 'password123')
+    await userEvent.click(screen.getByRole('button', { name: /下一步/ }))
+
+    await screen.findByLabelText('服務類型')
+    await userEvent.selectOptions(screen.getByLabelText('服務類型'), '1')
+    const rehab = screen.getByLabelText('障礙等級') as HTMLSelectElement
+    await userEvent.selectOptions(rehab, '中度')
+    expect(rehab.value).toBe('中度')
+
+    await userEvent.selectOptions(screen.getByLabelText('服務類型'), '2')
+    const ltc = (await screen.findByLabelText('失能等級')) as HTMLSelectElement
+    // value reset on type switch
+    expect(ltc.value).toBe('')
+    // CMS options now available
+    expect(screen.getByRole('option', { name: 'CMS 第3級' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: '中度' })).not.toBeInTheDocument()
   })
 
   it('shows step indicator', () => {

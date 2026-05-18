@@ -58,8 +58,65 @@ describe('step2Schema', () => {
     expect(step2Schema.safeParse({ ...valid, birthDate: '' }).success).toBe(false)
   })
 
+  it('rejects birthDate later than today', () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const future = tomorrow.toISOString().slice(0, 10)
+    const result = step2Schema.safeParse({ ...valid, birthDate: future })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const fields = result.error.flatten().fieldErrors
+      expect(fields.birthDate).toBeDefined()
+    }
+  })
+
+  it('accepts birthDate equal to today', () => {
+    const today = new Date().toISOString().slice(0, 10)
+    expect(step2Schema.safeParse({ ...valid, birthDate: today }).success).toBe(true)
+  })
+
   it('rejects missing expiryDate', () => {
     expect(step2Schema.safeParse({ ...valid, expiryDate: '' }).success).toBe(false)
+  })
+
+  it('rejects CMS level when identityType is 1 (復康)', () => {
+    const result = step2Schema.safeParse({
+      ...valid,
+      identityType: 1,
+      disabilityLevel: 'CMS 第3級',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const fields = result.error.flatten().fieldErrors
+      expect(fields.disabilityLevel).toBeDefined()
+    }
+  })
+
+  it('accepts CMS level when identityType is 2 (長照)', () => {
+    const result = step2Schema.safeParse({
+      ...valid,
+      identityType: 2,
+      disabilityLevel: 'CMS 第3級',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects 中度 when identityType is 2 (長照)', () => {
+    const result = step2Schema.safeParse({
+      ...valid,
+      identityType: 2,
+      disabilityLevel: '中度',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects CMS 第9級 (out of range) when identityType is 2', () => {
+    const result = step2Schema.safeParse({
+      ...valid,
+      identityType: 2,
+      disabilityLevel: 'CMS 第9級',
+    })
+    expect(result.success).toBe(false)
   })
 })
 

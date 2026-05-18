@@ -1,11 +1,19 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Send } from 'lucide-react'
 import { useRegister } from '@/hooks/useAuth'
-import { GENDER_OPTIONS, RELATION_TYPES, step1Schema, step2Schema, step3Schema } from '@/lib/validators/register.schema'
+import {
+  GENDER_OPTIONS,
+  LTC_LEVELS,
+  REHAB_LEVELS,
+  RELATION_TYPES,
+  step1Schema,
+  step2Schema,
+  step3Schema,
+} from '@/lib/validators/register.schema'
 import { Input, Select } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
@@ -68,8 +76,11 @@ function Stepper({ current }: { current: number }) {
   )
 }
 
+const todayISODate = () => new Date().toISOString().slice(0, 10)
+
 export function RegisterForm() {
   const [step, setStep] = useState(1)
+  const maxBirthDate = todayISODate()
   const [step1Data, setStep1Data] = useState<Omit<Step1, 'confirmPassword'> | null>(null)
   const [step2Data, setStep2Data] = useState<Step2 | null>(null)
   const register_ = useRegister()
@@ -77,6 +88,22 @@ export function RegisterForm() {
   const step1Form = useForm<Step1>({ resolver: zodResolver(step1Schema) })
   const step2Form = useForm<Step2>({ resolver: zodResolver(step2Schema) })
   const step3Form = useForm<Step3>({ resolver: zodResolver(step3Schema) })
+
+  const watchedIdentityType = step2Form.watch('identityType')
+  const identityType: 1 | 2 | undefined =
+    watchedIdentityType === 1 || watchedIdentityType === 2 ? watchedIdentityType : undefined
+  const disabilityOptions =
+    identityType === 2 ? LTC_LEVELS : identityType === 1 ? REHAB_LEVELS : []
+  const disabilityLabel =
+    identityType === 2 ? '失能等級' : identityType === 1 ? '障礙等級' : '障礙等級／失能等級'
+
+  const prevIdentityTypeRef = useRef<1 | 2 | undefined>(identityType)
+  useEffect(() => {
+    if (prevIdentityTypeRef.current !== identityType) {
+      prevIdentityTypeRef.current = identityType
+      step2Form.setValue('disabilityLevel', '', { shouldValidate: false, shouldDirty: false })
+    }
+  }, [identityType, step2Form])
 
   function handleStep1(data: Step1) {
     const { confirmPassword: _, ...rest } = data
@@ -245,6 +272,7 @@ export function RegisterForm() {
                 id="birthDate"
                 type="date"
                 autoComplete="bday"
+                max={maxBirthDate}
                 aria-required={true}
                 aria-invalid={!!e2.birthDate}
                 aria-describedby={e2.birthDate ? 'birthdate-error' : undefined}
@@ -271,16 +299,37 @@ export function RegisterForm() {
             </FormField>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <FormField label="障礙等級／失能等級" htmlFor="disabilityLevel" required error={e2.disabilityLevel?.message}>
-              <Input
+            <FormField
+              label={disabilityLabel}
+              htmlFor="disabilityLevel"
+              required
+              error={e2.disabilityLevel?.message}
+              hint={identityType === undefined ? '請先選擇上方「服務類型」' : undefined}
+            >
+              <Select
                 id="disabilityLevel"
-                autoComplete="off"
                 aria-required={true}
                 aria-invalid={!!e2.disabilityLevel}
-                aria-describedby={e2.disabilityLevel ? 'disabilitylevel-error' : undefined}
+                aria-describedby={
+                  e2.disabilityLevel
+                    ? 'disabilitylevel-error'
+                    : identityType === undefined
+                    ? 'disabilitylevel-hint'
+                    : undefined
+                }
                 invalid={!!e2.disabilityLevel}
+                disabled={identityType === undefined}
                 {...step2Form.register('disabilityLevel')}
-              />
+              >
+                <option value="">
+                  {identityType === undefined ? '請先選擇服務類型' : '請選擇'}
+                </option>
+                {disabilityOptions.map(level => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </Select>
             </FormField>
             <FormField label="輔具" htmlFor="assistiveDevice" required error={e2.assistiveDevice?.message} hint="若無使用輔具，請填「無」。">
               <Input
