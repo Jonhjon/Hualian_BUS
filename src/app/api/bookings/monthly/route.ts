@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth/middleware'
 import { ok, err } from '@/lib/api/response'
+import { computeTripDirections, type BookingForPairing } from '@/lib/booking/tripDirection'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth()
@@ -58,5 +59,25 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  return ok({ bookings, summary: { totalCount, completedCount, year, month } })
+  const pairingInput: BookingForPairing[] = bookings
+    .filter((b): b is typeof b & { PassengerID: string; PickupTime: Date } =>
+      !!b.IsRoundTrip && !!b.PassengerID && !!b.PickupTime,
+    )
+    .map((b) => ({
+      BookingID: b.BookingID,
+      PassengerID: b.PassengerID,
+      PickupTime: b.PickupTime,
+      PickupAddr: b.PickupAddr ?? '',
+      DropoffAddr: b.DropoffAddr ?? '',
+      IsRoundTrip: true,
+    }))
+  const directions = computeTripDirections(pairingInput)
+
+  const enriched = bookings.map((b) => ({
+    ...b,
+    tripDirection:
+      directions.get(String(b.BookingID)) ?? (b.IsRoundTrip ? 'unknown_roundtrip' : 'oneway'),
+  }))
+
+  return ok({ bookings: enriched, summary: { totalCount, completedCount, year, month } })
 }

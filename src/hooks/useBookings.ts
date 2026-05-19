@@ -1,6 +1,9 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api/client'
+import type { TripDirection } from '@/lib/booking/tripDirection'
+
+export type { TripDirection } from '@/lib/booking/tripDirection'
 
 export interface DispatchTaskSummary {
   TaskID: string
@@ -36,6 +39,7 @@ export interface Booking {
   CompanionCount: number
   BookingStatus: number
   IsRoundTrip: boolean
+  tripDirection?: TripDirection
   dispatchTasks?: DispatchTaskSummary[]
   passenger?: PassengerSummary | null
   monthStats?: MonthStats

@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { Bus, MapPin, Users, Repeat, ChevronRight, X, Star } from 'lucide-react'
+import { Bus, MapPin, Users, ArrowRight, ArrowLeft, Repeat, ChevronRight, X, Star } from 'lucide-react'
 import { useCancelBooking, type Booking } from '@/hooks/useBookings'
 import { Badge } from '@/components/ui/Badge'
 import { taipeiNowParts } from '@/lib/booking/timezone'
@@ -77,7 +77,16 @@ export function BookingCard({ booking }: Props) {
           <Badge tone={STATUS_TONE[booking.BookingStatus]}>
             {STATUS_LABEL[booking.BookingStatus] ?? '未知'}
           </Badge>
-          {booking.IsRoundTrip && (
+          {booking.tripDirection === 'outbound' && (
+            <Badge tone="info" icon={<ArrowRight size={11} aria-hidden="true" />}>去程</Badge>
+          )}
+          {booking.tripDirection === 'return' && (
+            <Badge tone="accent" icon={<ArrowLeft size={11} aria-hidden="true" />}>回程</Badge>
+          )}
+          {booking.tripDirection === 'unknown_roundtrip' && (
+            <Badge tone="neutral" icon={<Repeat size={11} aria-hidden="true" />}>去回程</Badge>
+          )}
+          {!booking.tripDirection && booking.IsRoundTrip && (
             <Badge tone="neutral" icon={<Repeat size={11} aria-hidden="true" />}>去回程</Badge>
           )}
           {booking.CompanionCount > 0 && (

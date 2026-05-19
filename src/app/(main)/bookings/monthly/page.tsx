@@ -7,6 +7,7 @@ import { Container } from '@/components/ui/Container'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { tripDirectionLabel } from '@/lib/booking/tripDirection'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'neutral'
 
@@ -170,7 +171,9 @@ export default function MonthlyBookingsPage() {
                     <td className="px-3 py-3">{b.passenger?.AssistiveDevice ?? '—'}</td>
                     <td className="max-w-[10rem] truncate px-3 py-3" title={b.PickupAddr}>{b.PickupAddr}</td>
                     <td className="max-w-[10rem] truncate px-3 py-3" title={b.DropoffAddr}>{b.DropoffAddr}</td>
-                    <td className="px-3 py-3">{b.IsRoundTrip ? '去回程' : '單程'}</td>
+                    <td className="px-3 py-3">
+                      {tripDirectionLabel(b.tripDirection ?? (b.IsRoundTrip ? 'unknown_roundtrip' : 'oneway'))}
+                    </td>
                     <td className="px-3 py-3">{b.passenger?.account?.Username ?? '—'}</td>
                     <td className="whitespace-nowrap px-3 py-3 font-semibold">{task?.vehicle?.PlateNo ?? '未派車'}</td>
                     <td className="px-3 py-3">{task?.vehicle?.VehicleType ?? '—'}</td>

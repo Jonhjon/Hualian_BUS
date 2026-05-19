@@ -5,6 +5,9 @@ import { requireAuth } from '@/lib/auth/middleware'
 import { bookingSchema, buildPickupDateTime } from '@/lib/validators/booking.schema'
 import { verifyCaptcha } from '@/lib/auth/captcha'
 import { ok, okPage, err } from '@/lib/api/response'
+import { computeTripDirections, type BookingForPairing } from '@/lib/booking/tripDirection'
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 class BookingConflictError extends Error {}
 class BookingQuotaError extends Error {}
@@ -60,7 +63,51 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  return okPage(bookings, { total, page, limit })
+  const roundTripTimes = bookings
+    .filter((b): b is typeof b & { PickupTime: Date } => !!b.IsRoundTrip && !!b.PickupTime)
+    .map((b) => b.PickupTime.getTime())
+  let pairingInput: BookingForPairing[] = []
+  if (roundTripTimes.length > 0) {
+    const min = new Date(Math.min(...roundTripTimes) - ONE_DAY_MS)
+    const max = new Date(Math.max(...roundTripTimes) + ONE_DAY_MS)
+    const siblings = await prisma.bookings.findMany({
+      where: {
+        PassengerID: profile.PassengerID,
+        IsRoundTrip: true,
+        PickupTime: { gte: min, lte: max },
+      },
+      select: {
+        BookingID: true,
+        PassengerID: true,
+        PickupTime: true,
+        PickupAddr: true,
+        DropoffAddr: true,
+        IsRoundTrip: true,
+      },
+    })
+    pairingInput = siblings
+      .filter((s): s is typeof s & { PassengerID: string; PickupTime: Date } =>
+        !!s.PassengerID && !!s.PickupTime,
+      )
+      .map((s) => ({
+        BookingID: s.BookingID,
+        PassengerID: s.PassengerID,
+        PickupTime: s.PickupTime,
+        PickupAddr: s.PickupAddr ?? '',
+        DropoffAddr: s.DropoffAddr ?? '',
+        IsRoundTrip: true,
+      }))
+  }
+
+  const directions = computeTripDirections(pairingInput)
+
+  const enriched = bookings.map((b) => ({
+    ...b,
+    tripDirection:
+      directions.get(String(b.BookingID)) ?? (b.IsRoundTrip ? 'unknown_roundtrip' : 'oneway'),
+  }))
+
+  return okPage(enriched, { total, page, limit })
 }
 
 export async function POST(req: NextRequest) {
