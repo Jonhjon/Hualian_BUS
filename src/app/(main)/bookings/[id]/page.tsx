@@ -20,6 +20,7 @@ import { Container } from '@/components/ui/Container'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { apiFetch } from '@/lib/api/client'
+import { taipeiNowParts } from '@/lib/booking/timezone'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'neutral'
 
@@ -98,11 +99,14 @@ export default function BookingDetailPage() {
   const task = booking.dispatchTasks?.[0]
   const date = new Date(booking.PickupTime)
   const fullDate = date.toLocaleDateString('zh-TW', {
+    timeZone: 'Asia/Taipei',
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
-  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const taipei = taipeiNowParts(date)
+  const time = `${String(taipei.hour).padStart(2, '0')}:${String(taipei.minute).padStart(2, '0')}`
   const eta = task?.EstimatedArrival
     ? new Date(task.EstimatedArrival).toLocaleString('zh-TW', {
+      timeZone: 'Asia/Taipei',
       hour: '2-digit', minute: '2-digit',
     })
     : null
@@ -169,13 +173,13 @@ export default function BookingDetailPage() {
               {booking.passenger.ExpiryDate && (
                 <>
                   <dt className="inline-flex items-center gap-1 text-ink-muted"><CalendarDays size={12} aria-hidden="true" />證明到期</dt>
-                  <dd className="text-ink">{new Date(booking.passenger.ExpiryDate).toLocaleDateString('zh-TW')}</dd>
+                  <dd className="text-ink">{new Date(booking.passenger.ExpiryDate).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}</dd>
                 </>
               )}
               {booking.CreatedAt && (
                 <>
                   <dt className="text-ink-muted">訂車時間</dt>
-                  <dd className="text-ink">{new Date(booking.CreatedAt).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' })}</dd>
+                  <dd className="text-ink">{new Date(booking.CreatedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', dateStyle: 'short', timeStyle: 'short' })}</dd>
                 </>
               )}
             </dl>

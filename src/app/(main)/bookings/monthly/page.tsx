@@ -143,10 +143,10 @@ export default function MonthlyBookingsPage() {
               {bookings.map((b) => {
                 const task = b.dispatchTasks?.[0]
                 const pickupDate = b.PickupTime
-                  ? new Date(b.PickupTime).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' })
+                  ? new Date(b.PickupTime).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', dateStyle: 'short', timeStyle: 'short' })
                   : '—'
                 const createdAt = b.CreatedAt
-                  ? new Date(b.CreatedAt).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' })
+                  ? new Date(b.CreatedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', dateStyle: 'short', timeStyle: 'short' })
                   : '—'
                 return (
                   <tr key={b.BookingID} className="hover:bg-surface-2/50">

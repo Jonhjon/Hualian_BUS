@@ -67,7 +67,7 @@ export function AnnouncementList() {
                 </h2>
                 {date && (
                   <p className="mt-1 text-xs text-ink-muted">
-                    {date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {date.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 )}
               </div>

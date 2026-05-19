@@ -53,7 +53,7 @@ export function AnnouncementDetail({ id }: { id: string }) {
             {a?.PublishDate && (
               <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink-muted">
                 <Calendar size={14} aria-hidden="true" className="text-brand-500" />
-                發布日期：{new Date(a.PublishDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                發布日期：{new Date(a.PublishDate).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             )}
           </header>

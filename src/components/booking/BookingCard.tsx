@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Bus, MapPin, Users, Repeat, ChevronRight, X, Star } from 'lucide-react'
 import { useCancelBooking, type Booking } from '@/hooks/useBookings'
 import { Badge } from '@/components/ui/Badge'
+import { taipeiNowParts } from '@/lib/booking/timezone'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'neutral'
 const STATUS_LABEL: Record<number, string> = {
@@ -25,7 +26,10 @@ const STATUS_TONE: Record<number, Tone> = {
 const CANCELLABLE = new Set([0, 1, 5])
 const FEEDBACK_ALLOWED_STATUS = 4
 
-const WEEKDAY = ['週日', '週一', '週二', '週三', '週四', '週五', '週六']
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('zh-TW', {
+  timeZone: 'Asia/Taipei',
+  weekday: 'short',
+})
 
 interface Props {
   booking: Booking
@@ -37,11 +41,12 @@ export function BookingCard({ booking }: Props) {
   const canGiveFeedback = booking.BookingStatus === FEEDBACK_ALLOWED_STATUS
 
   const date = new Date(booking.PickupTime)
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = `${date.getMonth() + 1} 月`
-  const weekday = WEEKDAY[date.getDay()]
-  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  const year = date.getFullYear()
+  const taipei = taipeiNowParts(date)
+  const day = String(taipei.day).padStart(2, '0')
+  const month = `${taipei.month} 月`
+  const weekday = WEEKDAY_FORMATTER.format(date)
+  const time = `${String(taipei.hour).padStart(2, '0')}:${String(taipei.minute).padStart(2, '0')}`
+  const year = taipei.year
 
   async function handleCancel() {
     if (!confirm('確定要取消此預約嗎？')) return

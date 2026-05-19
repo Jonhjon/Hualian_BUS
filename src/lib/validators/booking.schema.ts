@@ -1,31 +1,19 @@
 import { z } from 'zod'
+import { buildTaipeiPickupDateTime, taipeiDateStr } from '@/lib/booking/timezone'
 
 const VALID_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 
-function parseLocalDate(dateStr: string): Date | null {
-  const parts = dateStr.split('-').map(Number)
-  if (parts.length !== 3 || parts.some(isNaN)) return null
-  const [y, m, d] = parts
-  const date = new Date(y, m - 1, d)
-  return isNaN(date.getTime()) ? null : date
-}
-
 function isValidBookingDate(dateStr: string): boolean {
-  const date = parseLocalDate(dateStr)
-  if (!date) return false
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const max = new Date(today)
-  max.setDate(max.getDate() + 7)
-  return date >= today && date <= max
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false
+  const todayStr = taipeiDateStr()
+  const todayInstant = new Date(`${todayStr}T00:00:00+08:00`)
+  const maxInstant = new Date(todayInstant.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const maxStr = taipeiDateStr(maxInstant)
+  return dateStr >= todayStr && dateStr <= maxStr
 }
 
 export function buildPickupDateTime(dateStr: string, hour: number): Date | null {
-  const date = parseLocalDate(dateStr)
-  if (!date) return null
-  const target = new Date(date)
-  target.setHours(hour, 0, 0, 0)
-  return target
+  return buildTaipeiPickupDateTime(dateStr, hour)
 }
 
 const baseBookingObject = z.object({
