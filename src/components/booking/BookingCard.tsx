@@ -37,7 +37,7 @@ interface Props {
 
 export function BookingCard({ booking }: Props) {
   const cancel = useCancelBooking()
-  const canCancel = CANCELLABLE.has(booking.BookingStatus)
+  const canCancel = booking.BookingStatus != null && CANCELLABLE.has(booking.BookingStatus)
   const canGiveFeedback = booking.BookingStatus === FEEDBACK_ALLOWED_STATUS
 
   const date = new Date(booking.PickupTime)
@@ -74,8 +74,8 @@ export function BookingCard({ booking }: Props) {
 
       <div className="flex flex-1 flex-col gap-2 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={STATUS_TONE[booking.BookingStatus]}>
-            {STATUS_LABEL[booking.BookingStatus] ?? '未知'}
+          <Badge tone={STATUS_TONE[booking.BookingStatus ?? -1] ?? 'neutral'}>
+            {STATUS_LABEL[booking.BookingStatus ?? -1] ?? '未知'}
           </Badge>
           {booking.tripDirection === 'outbound' && (
             <Badge tone="info" icon={<ArrowRight size={11} aria-hidden="true" />}>去程</Badge>

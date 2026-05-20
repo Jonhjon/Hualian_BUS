@@ -127,8 +127,8 @@ export default function BookingDetailPage() {
           <h1 className="mt-1 text-3xl font-bold text-ink sm:text-4xl">{time}</h1>
           <p className="mt-2 text-sm text-ink-muted">預約編號 #{booking.BookingID}</p>
         </div>
-        <Badge tone={STATUS_TONE[booking.BookingStatus]} className="text-sm">
-          {STATUS_LABEL[booking.BookingStatus] ?? '未知'}
+        <Badge tone={STATUS_TONE[booking.BookingStatus ?? -1] ?? 'neutral'} className="text-sm">
+          {STATUS_LABEL[booking.BookingStatus ?? -1] ?? '未知'}
         </Badge>
       </header>
 
@@ -277,7 +277,7 @@ export default function BookingDetailPage() {
             <p className="rounded-md bg-brand-50 px-3 py-3 text-sm text-ink-soft">尚未派車，請耐心等候</p>
           )}
 
-          {[1, 3].includes(booking.BookingStatus) && (
+          {booking.BookingStatus != null && [1, 3].includes(booking.BookingStatus) && (
             <Link
               href={`/bookings/${booking.BookingID}/track`}
               className="mt-5 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md bg-brand-500 px-4 text-sm font-semibold text-white shadow-soft hover:bg-brand-700"

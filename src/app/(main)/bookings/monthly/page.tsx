@@ -152,8 +152,8 @@ export default function MonthlyBookingsPage() {
                 return (
                   <tr key={b.BookingID} className="hover:bg-surface-2/50">
                     <td className="whitespace-nowrap px-3 py-3">
-                      <Badge tone={STATUS_TONE[b.BookingStatus] ?? 'neutral'}>
-                        {STATUS_LABEL[b.BookingStatus] ?? '—'}
+                      <Badge tone={STATUS_TONE[b.BookingStatus ?? -1] ?? 'neutral'}>
+                        {STATUS_LABEL[b.BookingStatus ?? -1] ?? '未知'}
                       </Badge>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-ink-muted">{createdAt}</td>

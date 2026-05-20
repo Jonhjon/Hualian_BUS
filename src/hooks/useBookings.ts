@@ -37,7 +37,7 @@ export interface Booking {
   PickupAddr: string
   DropoffAddr: string
   CompanionCount: number
-  BookingStatus: number
+  BookingStatus: number | null
   IsRoundTrip: boolean
   tripDirection?: TripDirection
   dispatchTasks?: DispatchTaskSummary[]
