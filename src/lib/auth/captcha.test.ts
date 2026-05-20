@@ -24,7 +24,9 @@ describe('isCaptchaConfigured', () => {
   })
 })
 
-describe('verifyCaptcha', () => {
+// ⚠️ Skipped on branch `stress-test/disable-captcha` — verifyCaptcha 在此 branch 直接 return true，
+// 原本的 false-path 測試已不適用。切回 main 後行為自動恢復、測試會重新生效。
+describe.skip('verifyCaptcha', () => {
   it('returns false for null', async () => {
     expect(await verifyCaptcha(null)).toBe(false)
   })
