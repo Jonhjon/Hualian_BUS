@@ -1,5 +1,5 @@
 'use client'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { apiFetch } from '@/lib/api/client'
@@ -25,12 +25,14 @@ function getLoginNextPath(): string {
 export function useLogin() {
   const setAuth = useAuthStore(s => s.setAuth)
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (data: { username: string; password: string }) =>
       postApi('/api/auth/login', data),
     onSuccess: (_data, variables) => {
       setAuth(variables.username, 4)
+      queryClient.clear()
       router.push(getLoginNextPath())
       router.refresh()
     },
@@ -50,11 +52,13 @@ export function useRegister() {
 export function useLogout() {
   const clearAuth = useAuthStore(s => s.clearAuth)
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: () => postApi('/api/auth/logout', {}),
     onSuccess: () => {
       clearAuth()
+      queryClient.clear()
       router.push('/announcements')
       router.refresh()
     },
