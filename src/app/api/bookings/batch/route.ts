@@ -57,18 +57,20 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(
       async (tx) => {
         const times = returnTime ? [outboundTime, returnTime] : [outboundTime]
-        const conflict = await tx.bookings.findFirst({
-          where: {
-            PassengerID: profile.PassengerID,
-            PickupTime: { in: times },
-            BookingStatus: { in: [...ACTIVE_STATUSES] },
-          },
-        })
+        const [conflict, activeCount] = await Promise.all([
+          tx.bookings.findFirst({
+            where: {
+              PassengerID: profile.PassengerID,
+              PickupTime: { in: times },
+              BookingStatus: { in: [...ACTIVE_STATUSES] },
+            },
+            select: { BookingID: true },
+          }),
+          tx.bookings.count({
+            where: { PassengerID: profile.PassengerID, BookingStatus: { in: [...ACTIVE_STATUSES] } },
+          }),
+        ])
         if (conflict) throw new BookingConflictError()
-
-        const activeCount = await tx.bookings.count({
-          where: { PassengerID: profile.PassengerID, BookingStatus: { in: [...ACTIVE_STATUSES] } },
-        })
         const needed = returnTrip ? 2 : 1
         if (activeCount + needed > MAX_ACTIVE_BOOKINGS) throw new BookingQuotaError()
 
@@ -103,7 +105,10 @@ export async function POST(req: NextRequest) {
 
         return { outbound: outboundBooking, returnTrip: returnBooking }
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        timeout: 10_000,
+      },
     )
 
     return ok(result, 201)

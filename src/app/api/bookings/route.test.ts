@@ -141,7 +141,7 @@ describe('POST /api/bookings', () => {
     expect(res.status).toBe(422)
   })
 
-  it('wraps conflict/quota/create in a Serializable transaction', async () => {
+  it('wraps conflict/quota/create in a ReadCommitted transaction with timeout', async () => {
     ;(mockPrisma.bookings.findFirst as jest.Mock).mockResolvedValue(null)
     ;(mockPrisma.bookings.count as jest.Mock).mockResolvedValue(0)
     ;(mockPrisma.bookings.create as jest.Mock).mockResolvedValue({ BookingID: BigInt(1), BookingStatus: 0 })
@@ -151,7 +151,7 @@ describe('POST /api/bookings', () => {
     expect(res.status).toBe(201)
     expect((mockPrisma as unknown as { $transaction: jest.Mock }).$transaction).toHaveBeenCalledTimes(1)
     const call = (mockPrisma as unknown as { $transaction: jest.Mock }).$transaction.mock.calls[0]
-    expect(call[1]).toMatchObject({ isolationLevel: 'Serializable' })
+    expect(call[1]).toMatchObject({ isolationLevel: 'ReadCommitted', timeout: expect.any(Number) })
   })
 
   it('does not create booking when conflict detected inside transaction', async () => {

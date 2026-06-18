@@ -90,7 +90,7 @@ describe('POST /api/bookings/batch', () => {
     expect(mockPrisma.bookings.create).toHaveBeenCalledTimes(2)
     expect(mockTransaction).toHaveBeenCalledTimes(1)
     const opts = mockTransaction.mock.calls[0][1]
-    expect(opts).toMatchObject({ isolationLevel: 'Serializable' })
+    expect(opts).toMatchObject({ isolationLevel: 'ReadCommitted', timeout: expect.any(Number) })
   })
 
   it('creates only outbound when returnTrip omitted', async () => {
