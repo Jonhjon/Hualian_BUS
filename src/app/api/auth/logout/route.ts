@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
+import { ok } from '@/lib/api/response'
 
 export function POST() {
-  const res = NextResponse.json({ success: true, data: { message: '已登出' } })
+  const res = ok({ message: '已登出' })
   res.cookies.delete('auth_token')
   return res
 }

@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db'
 import { verifyPassword } from '@/lib/auth/password'
 import { signAccessToken } from '@/lib/auth/jwt'
 import { ok, err } from '@/lib/api/response'
+import { getClientIp } from '@/lib/api/clientIp'
+
+const PASSENGER_ROLE_ID = 4
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -40,21 +43,16 @@ export async function POST(req: NextRequest) {
 
   await prisma.account.update({
     where: { AccountID: account.AccountID },
-    data: {
-      LastLoginIP:
-        req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? '',
-    },
+    data: { LastLoginIP: getClientIp(req.headers) },
   })
 
   const res = ok({ message: '登入成功' })
   res.cookies.set('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
   })
   return res
 }
-
-const PASSENGER_ROLE_ID = 4

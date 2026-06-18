@@ -67,8 +67,7 @@ export async function POST(req: NextRequest) {
         },
       })
     })
-  } catch (error) {
-    console.error('Registration failed', error)
+  } catch {
     return err('申請失敗，請稍後再試', 500)
   }
 

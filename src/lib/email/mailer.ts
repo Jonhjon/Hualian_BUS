@@ -23,10 +23,10 @@ export async function sendEmail({
 }) {
   const transport = createTransport()
   if (!transport) {
-    // Dev mode: print to console instead of sending
-    console.log(`\n[EMAIL] To: ${to}`)
-    console.log(`[EMAIL] Subject: ${subject}`)
-    console.log(`[EMAIL] ---\n${html}\n---`)
+    // Dev mode only: skip body to avoid leaking reset tokens into log drains.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[EMAIL][dev] To: ${to} | Subject: ${subject} (body suppressed)`)
+    }
     return
   }
   await transport.sendMail({

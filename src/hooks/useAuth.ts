@@ -12,8 +12,17 @@ function postApi(url: string, body: unknown, fallbackErrorMessage = '操作失�
   }, { fallbackErrorMessage })
 }
 
+const CONTROL_OR_CRLF_ENCODED = /[\x00-\x1f\x7f]|%0[ad]/i
+
 export function getSafeNextPath(next: string | null): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//')) return '/bookings'
+  if (!next) return '/bookings'
+  // Must be a strict same-origin path.
+  if (!next.startsWith('/')) return '/bookings'
+  // Reject protocol-relative URLs (//evil.com) and backslash bypass
+  // (some browsers treat /\evil.com as protocol-relative).
+  if (next.startsWith('//') || next.startsWith('/\\')) return '/bookings'
+  // Reject CRLF / control characters (response-splitting, log injection).
+  if (CONTROL_OR_CRLF_ENCODED.test(next)) return '/bookings'
   return next
 }
 
