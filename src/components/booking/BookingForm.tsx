@@ -24,13 +24,23 @@ import { FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
 import { getAvailableHours, toLocalDateString } from '@/lib/booking/availableHours'
 import { getDefaultBookingValues } from '@/lib/booking/defaults'
+import { taipeiDateStr } from '@/lib/booking/timezone'
 
 const IDENTITY_LABEL: Record<number, string> = { 1: '復康（身障）', 2: '長照（失能）' }
 
+function identityLabel(identityType: number | null | undefined): string {
+  if (identityType == null) return '—'
+  return IDENTITY_LABEL[identityType] ?? '—'
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+// Derive both bounds in Asia/Taipei so the picker matches server-side isValidBookingDate
+// for users in any browser timezone.
 function getDateRange(now: Date) {
-  const today = new Date(now); today.setHours(0, 0, 0, 0)
-  const max = new Date(today); max.setDate(max.getDate() + 7)
-  return { min: toLocalDateString(today), max: toLocalDateString(max) }
+  const todayStr = taipeiDateStr(now)
+  const maxStr = taipeiDateStr(new Date(now.getTime() + 7 * ONE_DAY_MS))
+  return { min: todayStr, max: maxStr }
 }
 
 interface ProfileResponse {
@@ -193,7 +203,10 @@ export function BookingForm() {
   }
 
   useEffect(() => {
-    fetchCaptcha()
+    // fetchCaptcha already converts errors to setCaptchaError state; swallow any
+    // post-unmount rejection so it doesn't become an unhandled-promise warning.
+    fetchCaptcha().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function onSubmit(data: BookingInput) {
@@ -333,7 +346,7 @@ export function BookingForm() {
             {profile.isLoading && <p className="mt-1 text-xs text-ink-muted">正在帶入帳號服務類型...</p>}
             {hasValidIdentityType && (
               <p className="mt-1 text-xs text-ink-muted">
-                已依個人資料帶入：{IDENTITY_LABEL[identityType]}
+                已依個人資料帶入：{identityLabel(identityType)}
               </p>
             )}
             {profile.isError && (
@@ -348,7 +361,7 @@ export function BookingForm() {
             <ProfileItem label="性別" value={profileData?.gender ?? '—'} />
             <ProfileItem label="出生年月日" value={formatProfileDate(profileData?.birthDate)} />
             <ProfileItem label="證明到期日" value={formatProfileDate(profileData?.expiryDate)} />
-            <ProfileItem label="類別" value={hasValidIdentityType ? IDENTITY_LABEL[identityType] : '—'} />
+            <ProfileItem label="類別" value={identityLabel(hasValidIdentityType ? identityType : null)} />
             <ProfileItem label="障礙等級／失能等級" value={profileDisabilityLevel ?? '—'} />
             <ProfileItem label="輔具" value={profileAssistiveDevice ?? '—'} />
           </dl>

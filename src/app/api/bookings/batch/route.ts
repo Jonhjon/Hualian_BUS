@@ -2,22 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth/middleware'
+import {
+  findPassengerEligibility,
+  checkBookingEligibility,
+} from '@/lib/auth/passenger'
 import { batchBookingSchema, buildPickupDateTime } from '@/lib/validators/booking.schema'
 import { verifyCaptcha } from '@/lib/auth/captcha'
 import { ok, err } from '@/lib/api/response'
-
-const ACTIVE_STATUSES = [0, 1, 3, 5]
-const MAX_ACTIVE = 3
-
-class BookingConflictError extends Error {}
-class BookingQuotaError extends Error {}
-
-async function getPassengerProfile(accountId: string) {
-  return prisma.passengerProfile.findFirst({
-    where: { AccountID: accountId },
-    select: { PassengerID: true, IdentityType: true, AuditStatus: true, ExpiryDate: true },
-  })
-}
+import {
+  ACTIVE_STATUSES,
+  BookingStatus,
+  BookingConflictError,
+  BookingQuotaError,
+  MAX_ACTIVE_BOOKINGS,
+} from '@/lib/booking/constants'
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth()
@@ -39,17 +37,10 @@ export async function POST(req: NextRequest) {
   const captchaOk = await verifyCaptcha(captchaToken)
   if (!captchaOk) return err('機器人驗證未通過，請重新驗證', 400)
 
-  const profile = await getPassengerProfile(auth.payload.accountId)
+  const profile = await findPassengerEligibility(auth.payload.accountId)
   if (!profile) return err('找不到乘客資料', 404)
-  if (profile.AuditStatus === 0) return err('您的帳號尚在審核中，審核通過後始可預約', 403)
-  if (profile.AuditStatus === 2) return err('您的帳號審核未通過，無法預約，請聯繫客服', 403)
-  if (profile.AuditStatus !== 1) return err('帳號審核狀態異常，請聯繫客服', 403)
-  if (profile.IdentityType !== 1 && profile.IdentityType !== 2) {
-    return err('帳號服務類型未設定，請先聯繫客服補齊個人資料', 422)
-  }
-  if (profile.ExpiryDate && profile.ExpiryDate.getTime() < Date.now()) {
-    return err('您的證明已到期，請更新後再行預約', 403)
-  }
+  const ineligible = checkBookingEligibility(profile)
+  if (ineligible) return ineligible
 
   const outboundTime = buildPickupDateTime(outbound.pickupDate, outbound.pickupHour)
   if (!outboundTime) return err('預約時間格式錯誤', 422)
@@ -70,16 +61,16 @@ export async function POST(req: NextRequest) {
           where: {
             PassengerID: profile.PassengerID,
             PickupTime: { in: times },
-            BookingStatus: { in: ACTIVE_STATUSES },
+            BookingStatus: { in: [...ACTIVE_STATUSES] },
           },
         })
         if (conflict) throw new BookingConflictError()
 
         const activeCount = await tx.bookings.count({
-          where: { PassengerID: profile.PassengerID, BookingStatus: { in: ACTIVE_STATUSES } },
+          where: { PassengerID: profile.PassengerID, BookingStatus: { in: [...ACTIVE_STATUSES] } },
         })
         const needed = returnTrip ? 2 : 1
-        if (activeCount + needed > MAX_ACTIVE) throw new BookingQuotaError()
+        if (activeCount + needed > MAX_ACTIVE_BOOKINGS) throw new BookingQuotaError()
 
         const outboundBooking = await tx.bookings.create({
           data: {
@@ -89,7 +80,7 @@ export async function POST(req: NextRequest) {
             PickupAddr: outbound.pickupAddr,
             DropoffAddr: outbound.dropoffAddr,
             CompanionCount: outbound.companionCount,
-            BookingStatus: 0,
+            BookingStatus: BookingStatus.Pending,
             IsRoundTrip: !!returnTrip,
           },
         })
@@ -104,7 +95,7 @@ export async function POST(req: NextRequest) {
               PickupAddr: returnTrip.pickupAddr,
               DropoffAddr: returnTrip.dropoffAddr,
               CompanionCount: returnTrip.companionCount,
-              BookingStatus: 0,
+              BookingStatus: BookingStatus.Pending,
               IsRoundTrip: true,
             },
           })

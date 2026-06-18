@@ -2,9 +2,8 @@ import { requireAuth } from '@/lib/auth/middleware'
 import { prisma } from '@/lib/db'
 import { ok, err } from '@/lib/api/response'
 import { maskIdentityNo } from '@/lib/utils/mask'
+import { BookingStatus } from '@/lib/booking/constants'
 
-const STATUS_COMPLETED = 4
-const STATUS_CANCELLED = 2
 const GENDER_LABEL: Record<number, string> = { 1: '男', 2: '女', 0: '其他' }
 
 interface MonthlyStats {
@@ -36,8 +35,8 @@ async function getMonthlyStats(passengerId: string): Promise<MonthlyStats> {
   for (const g of groups) {
     const n = g._count._all
     booked += n
-    if (g.BookingStatus === STATUS_COMPLETED) completed = n
-    else if (g.BookingStatus === STATUS_CANCELLED) cancelled = n
+    if (g.BookingStatus === BookingStatus.Completed) completed = n
+    else if (g.BookingStatus === BookingStatus.Cancelled) cancelled = n
   }
   return { booked, completed, cancelled }
 }

@@ -2,8 +2,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api/client'
 import type { TripDirection } from '@/lib/booking/tripDirection'
+import type { BookingInput, BatchBookingInput } from '@/lib/validators/booking.schema'
+import { BookingStatus, type BookingStatusValue } from '@/lib/booking/constants'
 
 export type { TripDirection } from '@/lib/booking/tripDirection'
+
+const TERMINAL_STATUSES = new Set<BookingStatusValue>([
+  BookingStatus.Cancelled,
+  BookingStatus.Completed,
+])
 
 export interface DispatchTaskSummary {
   TaskID: string
@@ -99,7 +106,7 @@ export function useBookings(status?: 'upcoming' | 'history', page = 1) {
 export function useCreateBooking() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
+    mutationFn: (data: BookingInput) =>
       apiFetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,10 +116,12 @@ export function useCreateBooking() {
   })
 }
 
+export type BatchBookingPayload = BatchBookingInput
+
 export function useCreateBatchBooking() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
+    mutationFn: (data: BatchBookingPayload) =>
       apiFetch('/api/bookings/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,12 +147,18 @@ export function useMonthlyBookings(year: number, month: number) {
   })
 }
 
-export function useVehicleTracking(bookingId: string | null) {
+export function useVehicleTracking(
+  bookingId: string | null,
+  bookingStatus?: number | null,
+) {
+  const isTerminal =
+    typeof bookingStatus === 'number' &&
+    TERMINAL_STATUSES.has(bookingStatus as BookingStatusValue)
   return useQuery<VehicleTrackingResponse>({
     queryKey: ['tracking', bookingId],
     queryFn: () => apiFetch<VehicleTrackingResponse>(`/api/bookings/${bookingId}/track`),
-    enabled: !!bookingId,
-    refetchInterval: 30_000,
+    enabled: !!bookingId && !isTerminal,
+    refetchInterval: isTerminal ? false : 30_000,
     refetchIntervalInBackground: false,
   })
 }

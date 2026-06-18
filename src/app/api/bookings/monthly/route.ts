@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth/middleware'
+import { findPassengerId } from '@/lib/auth/passenger'
+import { BookingStatus } from '@/lib/booking/constants'
 import { ok, err } from '@/lib/api/response'
 import { computeTripDirections, type BookingForPairing } from '@/lib/booking/tripDirection'
 
@@ -19,13 +21,8 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(year, month - 1, 1)
   const monthEnd   = new Date(year, month, 1)
 
-  const profile = await prisma.passengerProfile.findFirst({
-    where: { AccountID: auth.payload.accountId },
-    select: { PassengerID: true },
-  })
-  if (!profile) return err('找不到乘客資料', 404)
-
-  const pid = profile.PassengerID
+  const pid = await findPassengerId(auth.payload.accountId)
+  if (!pid) return err('找不到乘客資料', 404)
 
   const [bookings, totalCount, completedCount] = await Promise.all([
     prisma.bookings.findMany({
@@ -55,7 +52,7 @@ export async function GET(req: NextRequest) {
       where: { PassengerID: pid, PickupTime: { gte: monthStart, lt: monthEnd } },
     }),
     prisma.bookings.count({
-      where: { PassengerID: pid, BookingStatus: 4, PickupTime: { gte: monthStart, lt: monthEnd } },
+      where: { PassengerID: pid, BookingStatus: BookingStatus.Completed, PickupTime: { gte: monthStart, lt: monthEnd } },
     }),
   ])
 

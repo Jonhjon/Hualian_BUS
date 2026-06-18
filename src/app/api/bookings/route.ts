@@ -2,32 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth/middleware'
+import {
+  findPassengerEligibility,
+  checkBookingEligibility,
+} from '@/lib/auth/passenger'
 import { bookingSchema, buildPickupDateTime } from '@/lib/validators/booking.schema'
 import { verifyCaptcha } from '@/lib/auth/captcha'
 import { ok, okPage, err } from '@/lib/api/response'
+import {
+  ACTIVE_STATUSES,
+  BookingStatus,
+  BookingConflictError,
+  BookingQuotaError,
+  MAX_ACTIVE_BOOKINGS,
+} from '@/lib/booking/constants'
 import { computeTripDirections, type BookingForPairing } from '@/lib/booking/tripDirection'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
-
-class BookingConflictError extends Error {}
-class BookingQuotaError extends Error {}
-
-const ACTIVE_STATUSES = [0, 1, 3, 5]
-const MAX_ACTIVE = 3
-
-async function getPassengerProfile(accountId: string) {
-  const profile = await prisma.passengerProfile.findFirst({
-    where: { AccountID: accountId },
-    select: { PassengerID: true, IdentityType: true, AuditStatus: true, ExpiryDate: true },
-  })
-  return profile ?? null
-}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (auth.error) return auth.error
 
-  const profile = await getPassengerProfile(auth.payload.accountId)
+  const profile = await findPassengerEligibility(auth.payload.accountId)
   if (!profile) return err('找不到乘客資料', 404)
 
   const { searchParams } = new URL(req.url)
@@ -36,9 +33,9 @@ export async function GET(req: NextRequest) {
   const limit = 10
 
   const where = statusParam === 'history'
-    ? { PassengerID: profile.PassengerID, BookingStatus: { in: [2, 4] } }
+    ? { PassengerID: profile.PassengerID, BookingStatus: { in: [BookingStatus.Cancelled, BookingStatus.Completed] } }
     : statusParam === 'upcoming'
-    ? { PassengerID: profile.PassengerID, BookingStatus: { in: ACTIVE_STATUSES } }
+    ? { PassengerID: profile.PassengerID, BookingStatus: { in: [...ACTIVE_STATUSES] } }
     : { PassengerID: profile.PassengerID }
 
   const [total, bookings] = await Promise.all([
@@ -130,23 +127,10 @@ export async function POST(req: NextRequest) {
   const captchaOk = await verifyCaptcha(input.captchaToken)
   if (!captchaOk) return err('機器人驗證未通過，請重新驗證', 400)
 
-  const profile = await getPassengerProfile(auth.payload.accountId)
+  const profile = await findPassengerEligibility(auth.payload.accountId)
   if (!profile) return err('找不到乘客資料', 404)
-  if (profile.AuditStatus === 0) {
-    return err('您的帳號尚在審核中，審核通過後始可預約', 403)
-  }
-  if (profile.AuditStatus === 2) {
-    return err('您的帳號審核未通過，無法預約，請聯繫客服', 403)
-  }
-  if (profile.AuditStatus !== 1) {
-    return err('帳號審核狀態異常，請聯繫客服', 403)
-  }
-  if (profile.IdentityType !== 1 && profile.IdentityType !== 2) {
-    return err('帳號服務類型未設定，請先聯繫客服補齊個人資料', 422)
-  }
-  if (profile.ExpiryDate && profile.ExpiryDate.getTime() < Date.now()) {
-    return err('您的證明已到期，請更新後再行預約', 403)
-  }
+  const ineligible = checkBookingEligibility(profile)
+  if (ineligible) return ineligible
 
   const pickupTime = buildPickupDateTime(input.pickupDate, input.pickupHour)
   if (!pickupTime) return err('預約時間格式錯誤', 422)
@@ -167,15 +151,15 @@ export async function POST(req: NextRequest) {
           where: {
             PassengerID: profile.PassengerID,
             PickupTime: pickupTime,
-            BookingStatus: { in: ACTIVE_STATUSES },
+            BookingStatus: { in: [...ACTIVE_STATUSES] },
           },
         })
         if (conflict) throw new BookingConflictError()
 
         const activeCount = await tx.bookings.count({
-          where: { PassengerID: profile.PassengerID, BookingStatus: { in: ACTIVE_STATUSES } },
+          where: { PassengerID: profile.PassengerID, BookingStatus: { in: [...ACTIVE_STATUSES] } },
         })
-        if (activeCount >= MAX_ACTIVE) throw new BookingQuotaError()
+        if (activeCount >= MAX_ACTIVE_BOOKINGS) throw new BookingQuotaError()
 
         return tx.bookings.create({
           data: {
@@ -185,7 +169,7 @@ export async function POST(req: NextRequest) {
             PickupAddr: input.pickupAddr,
             DropoffAddr: input.dropoffAddr,
             CompanionCount: input.companionCount,
-            BookingStatus: 0,
+            BookingStatus: BookingStatus.Pending,
             IsRoundTrip: input.isRoundTrip,
           },
         })
